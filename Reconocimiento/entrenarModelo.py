@@ -1,7 +1,7 @@
 import cv2
 import os
 import numpy as np
-print(cv2.__version__)
+
 
 dataPath = 'data'  # Carpeta donde tienes los rostros
 peopleList = os.listdir(dataPath)
