@@ -62,3 +62,6 @@ else:
 
     cap.release()
     cv2.destroyAllWindows()
+
+
+#Observacion: NO DETECTA CARAS DE PERFIL
