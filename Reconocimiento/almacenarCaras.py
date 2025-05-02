@@ -16,19 +16,15 @@ if not os.path.exists(personPath):
 
 
 #Abre frame que muestra la camara y sale con q
-
 cap = cv2.VideoCapture(0)
+
+count = 0  # Contador de imágenes guardadas
 
 if not cap.isOpened():
     print("Error al abrir la cámara")
 else:
-
-
     # Cargar el clasificador de Haar para detección de rostros
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
-    # Iniciar la captura de video
-    cap = cv2.VideoCapture(0)
 
     while True:
         ret, frame = cap.read()
@@ -45,10 +41,17 @@ else:
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
+            # Guardar imagen detectada
+            face_img = gray[y:y + h, x:x + w]
+            img_path = os.path.join(personPath, f"rostro_{count}.jpg")
+            cv2.imwrite(img_path, face_img)
+            print(f"Imagen guardada: {img_path}")
+            count += 1
+
         cv2.imshow('Detección de Rostros', frame)
 
         # Salir con la tecla 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord('q') or count >= 50:  # Guardará 50 imágenes antes de cerrar
             break
 
     cap.release()
