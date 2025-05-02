@@ -2,7 +2,7 @@
 import os
 import cv2
 
-person = 'usuario'
+person = input('Ingrese su nombre')
 dataPath= 'data'
 personPath = dataPath + '/' + person
 
