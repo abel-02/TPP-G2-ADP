@@ -16,9 +16,13 @@ if not os.path.exists(personPath):
 
 
 #Abre frame que muestra la camara y sale con q
-cap = cv2.VideoCapture(0)
+#0: camara principal
+#1: camara secundaria
+cap = cv2.VideoCapture(1)
 
 count = 0  # Contador de imágenes guardadas
+
+cantImagenes = 300 # Aca defino cuantas imagenes puede guardar
 
 if not cap.isOpened():
     print("Error al abrir la cámara")
@@ -53,7 +57,7 @@ else:
         cv2.imshow('Detección de Rostros', frame)
 
         # Salir con la tecla 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q') or count >= 50:  # Guardará 50 imágenes antes de cerrar
+        if cv2.waitKey(1) & 0xFF == ord('q') or count >= cantImagenes:  # Guardará 50 imágenes antes de cerrar
             break
 
     cap.release()
