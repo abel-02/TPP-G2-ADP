@@ -42,9 +42,11 @@ else:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
             # Guardar imagen detectada
-            face_img = gray[y:y + h, x:x + w]
+            face_img = frame[y:y+h, x:x+w]  # Mantiene los colores originales
+
             img_path = os.path.join(personPath, f"rostro_{count}.jpg")
             cv2.imwrite(img_path, face_img)
+
             print(f"Imagen guardada: {img_path}")
             count += 1
 
