@@ -6,6 +6,10 @@ import numpy as np
 dataPath = 'data'  # Carpeta donde tienes los rostros
 peopleList = os.listdir(dataPath)
 
+if not peopleList:
+    print("Error: No hay datos para entrenar, la carpeta data esta vacia")
+    exit()
+
 labels = []
 facesData = []
 label = 0
