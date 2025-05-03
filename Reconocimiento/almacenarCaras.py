@@ -3,6 +3,7 @@ import os
 import cv2
 
 person = input('Ingrese su nombre')
+#person = 'abel'
 dataPath= 'data'
 personPath = dataPath + '/' + person
 
@@ -18,7 +19,7 @@ if not os.path.exists(personPath):
 #Abre frame que muestra la camara y sale con q
 #0: camara principal
 #1: camara secundaria
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 count = 0  # Contador de imágenes guardadas
 
@@ -27,8 +28,9 @@ cantImagenes = 300 # Aca defino cuantas imagenes puede guardar
 if not cap.isOpened():
     print("Error al abrir la cámara")
 else:
-    # Cargar el clasificador de Haar para detección de rostros
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    # Cargar el clasificador de Haar para detección de rostros y otro para detectar rostros de perfil
+    frontal_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
 
     while True:
         ret, frame = cap.read()
@@ -39,7 +41,11 @@ else:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Detectar rostros en la imagen
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+        faces = frontal_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+
+        # Si no se detecta, seguro que el rostro esta de perfil
+        if len(faces) == 0:
+            faces = profile_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 
         # Dibujar rectángulos alrededor de los rostros detectados
         for (x, y, w, h) in faces:
