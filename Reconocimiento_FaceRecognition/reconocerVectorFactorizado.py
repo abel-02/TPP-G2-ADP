@@ -1,37 +1,11 @@
 import cv2
 import face_recognition
 import numpy as np
-import os
 from datetime import datetime
 import winsound
-
-
-# CONFIGURACIÓN
-UMBRAL = 0.5
-CARPETA_VECTORES = "vectores"
-
-
-# ----------------------- FUNCIONES -----------------------
-
-def cargar_vectores():
-    """
-    Carga todos los vectores .npy de la carpeta y agrupa por persona.
-    Ejemplo: "Pedro_1.npy", "Pedro_2.npy" → vectores["Pedro"] = [v1, v2]
-    """
-    vectores = {}
-    for archivo in os.listdir(CARPETA_VECTORES):
-        if archivo.endswith(".npy"):
-            nombre_base = archivo.split("_")[0]
-            vector = np.load(os.path.join(CARPETA_VECTORES, archivo))
-            vectores.setdefault(nombre_base, []).append(vector)
-    return vectores
-
+from utilsVectores import cargar_vectores, UMBRAL
 
 def reconocer_persona(encoding, vectores_guardados):
-    """
-    Compara un encoding con todos los vectores guardados.
-    Devuelve el nombre detectado o 'Desconocido'
-    """
     nombre_detectado = "Desconocido"
     menor_distancia = 1.0
 
@@ -41,14 +15,10 @@ def reconocer_persona(encoding, vectores_guardados):
             if distancia < menor_distancia and distancia < UMBRAL:
                 menor_distancia = distancia
                 nombre_detectado = nombre
-
     return nombre_detectado
 
 
 def registrar(nombre, registro_estado, ultimos_tiempos):
-    """
-    Registra entrada o salida con lógica de alternancia y anti-repetición
-    """
     ahora = datetime.now()
     if nombre not in registro_estado:
         registro_estado[nombre] = False
@@ -68,16 +38,11 @@ def registrar(nombre, registro_estado, ultimos_tiempos):
 
 
 def mostrar_etiqueta(frame, box, nombre):
-    """
-    Dibuja el rectángulo y el nombre sobre el rostro detectado
-    """
     top, right, bottom, left = box
     cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
     cv2.putText(frame, nombre, (left, top - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
-
-# ----------------------- PROGRAMA PRINCIPAL -----------------------
 
 def main():
     vectores_guardados = cargar_vectores()
@@ -103,11 +68,10 @@ def main():
             nombre = reconocer_persona(encoding, vectores_guardados)
             if nombre != "Desconocido":
                 registrar(nombre, registro_estado, ultimos_tiempos)
-
             mostrar_etiqueta(frame, box, nombre)
 
         cv2.imshow("Shain Flow", frame)
-        if cv2.waitKey(1) == 27:  # ESC
+        if cv2.waitKey(1) == 27:
             break
 
     cap.release()
