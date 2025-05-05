@@ -1,4 +1,7 @@
 import os
+
+import cv2
+import face_recognition
 import numpy as np
 
 # Configuración
@@ -27,3 +30,11 @@ def guardar_vector(nombre, contador, vector):
     nombre_archivo = f"{nombre}_{contador}.npy"
     ruta = os.path.join(CARPETA_VECTORES, nombre_archivo)
     np.save(ruta, vector)
+
+def extraer_vector(imagen_bytes: bytes):
+    np_arr = np.frombuffer(imagen_bytes, np.uint8)
+    imagen_np = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    vectores = face_recognition.face_encodings(imagen_np)
+    if vectores:
+        return vectores[0]
+    return None
