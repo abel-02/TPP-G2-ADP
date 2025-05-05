@@ -30,6 +30,7 @@ import os
 
 from app.utils.utilsVectores import CARPETA_VECTORES, guardar_vector, extraer_vector
 from app.utils.sesion_temp import sesiones
+from app.utils.registro_asistencia import registrar_fichaje, obtener_fichajes
 
 app = FastAPI()
 
@@ -143,6 +144,16 @@ async def fichar_gesto(imagen: UploadFile = File(...)):
             }
 
     print(f"✅ Fichaje exitoso de {nombre}")
-    return {"fichaje_completo": True, "mensaje": f"Fichaje exitoso de {nombre}"}
+    # Se registra y guarda la hora
+    fichaje = registrar_fichaje(nombre)
+
+    return {
+        "fichaje_completo": True,
+        "mensaje": f"Fichaje exitoso de {nombre}",
+        "registro": fichaje
+    }
 
 
+@app.get("/fichadas")
+def obtenerFichadas():
+    return obtener_fichajes()
