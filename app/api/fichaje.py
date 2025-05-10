@@ -7,21 +7,21 @@ router = APIRouter()
 
 @router.post("/fichar")
 async def fichar(imagen_neutra: UploadFile = File(...), imagen_gesto: UploadFile = File(...)):
-
+    # Lee imagenes
     imagen1_bytes = await imagen_neutra.read()
     imagen2_bytes = await imagen_gesto.read()
 
-
+    # 1. Reconoce a la persona
     persona_id = identificar_persona(imagen1_bytes)
     if not persona_id:
         raise HTTPException(status_code=401, detail="Persona no reconocida")
 
-
+    # 2. Valida expresión o gesto
     liveness_ok = verificar_liveness(imagen1_bytes, imagen2_bytes)
     if not liveness_ok:
         raise HTTPException(status_code=403, detail="Validación de expresión fallida")
 
-
-    registrar_fichada(persona_id)
+    # 3. Guardar fichaje en base de datos
+    #registrar_fichada(persona_id)
 
     return {"status": "ok", "mensaje": "Fichaje exitoso", "persona_id": persona_id}
