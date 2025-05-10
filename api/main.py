@@ -1,47 +1,52 @@
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from models.database import SessionLocal
-from schemas.empleado import EmpleadoCreate, EmpleadoResponse
-from utils import crud, crear_empleado, obtener_empleado_por_dni
-from uuid import UUID
+from fastapi import FastAPI, HTTPException, Depends
+from models import Empleado, RegistroHorario
+import uuid
+from typing import Optional
+from datetime import datetime
 
-app = FastAPI(title="API de Empleados")
+app = FastAPI()
 
-# Dependencia para la sesión de BD
-def get_db():
-    db = SessionLocal()
+@app.post("/empleados/")
+def crear_empleado(dni: str, nombre: str, apellido: str):
     try:
-        yield db
-    finally:
-        db.close()
+        empleado = Empleado.crear(dni, nombre, apellido)
+        return {
+            "id": empleado.id,
+            "dni": empleado.dni,
+            "nombre": empleado.nombre,
+            "apellido": empleado.apellido
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-# ----- Endpoints -----
-@app.post("/empleados/", response_model=EmpleadoResponse)
-def crear_empleado_api(empleado: EmpleadoCreate, db: Session = Depends(get_db)):
-    db_empleado = obtener_empleado_por_dni(db, dni=empleado.dni)
-    if db_empleado:
-        raise HTTPException(status_code=400, detail="DNI ya registrado")
-    return crear_empleado(db=db, empleado=empleado)
-
-@app.get("/empleados/{dni}", response_model=EmpleadoResponse)
-def leer_empleado(dni: str, db: Session = Depends(get_db)):
-    empleado = obtener_empleado_por_dni(db, dni=dni)
+@app.get("/empleados/{dni}")
+def obtener_empleado(dni: str):
+    empleado = Empleado.obtener_por_dni(dni)
     if not empleado:
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
-    return empleado
+    return empleado.__dict__
 
-@app.get("/empleados/{empleado_id}/registros")
-def obtener_registros_empleado(
-    empleado_id: UUID,
-    año: int,
-    mes: int,
-    db: Session = Depends(get_db)
+@app.post("/registros/")
+def registrar_horario(empleado_id: str, tipo: str):
+    try:
+        registro = RegistroHorario.registrar(empleado_id, tipo)
+        return registro.__dict__
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/registros/{empleado_id}")
+def obtener_registros(
+    empleado_id: str,
+    año: Optional[int] = None,
+    mes: Optional[int] = None
 ):
-    # Lógica para filtrar registros por mes/año
-    registros = db.query(RegistroHorario).filter(
-        RegistroHorario.empleado_id == empleado_id,
-        extract('year', RegistroHorario.fecha_hora) == año,
-        extract('month', RegistroHorario.fecha_hora) == mes
-    ).all()
-    return registros
+    if año and mes:
+        registros = RegistroHorario.obtener_registros_mensuales(empleado_id, año, mes)
+    else:
+        registros = RegistroHorario.obtener_todos(empleado_id)
+    return [r.__dict__ for r in registros]
+
+@app.get("/horas/{empleado_id}")
+def calcular_horas(empleado_id: str, año: int, mes: int):
+    horas = RegistroHorario.calcular_horas_mensuales(empleado_id, año, mes)
+    return {"horas_trabajadas": horas}
