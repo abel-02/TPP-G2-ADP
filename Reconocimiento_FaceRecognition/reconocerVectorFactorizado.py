@@ -1,8 +1,13 @@
 import cv2
+import dlib
 import face_recognition
+import joblib
 import numpy as np
 from datetime import datetime
 import winsound
+from skimage.feature import local_binary_pattern
+
+from Reconocimiento.entrenarGesto import detector
 from utilsVectores import cargar_vectores, UMBRAL
 
 
@@ -46,42 +51,76 @@ def mostrar_etiqueta(frame, box, nombre):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
 
+def validar_textura(face_roi, texture_model):
+    """Verifica si el rostro es real (no una foto) usando LBP."""
+    gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+    lbp = local_binary_pattern(gray, 8, 1, method="uniform")
+    hist, _ = np.histogram(lbp, bins=256, range=(0, 256))
+    es_real = texture_model.predict([hist])[0] == 1
+    return es_real
+
+
+def detectar_gesto(face_roi, predictor, gestos_model):
+    """Identifica sonrisa o guiño con landmarks faciales."""
+    gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+    faces = detector(gray)
+    if len(faces) == 0:
+        return None
+
+    landmarks = predictor(gray, faces[0])
+    landmarks_np = np.array([[p.x, p.y] for p in landmarks.parts()])
+
+    # Ejemplo simplificado: Sonrisa si la boca está abierta
+    mouth_open = (landmarks_np[66][1] - landmarks_np[62][1]) > 20  # Puntos de la boca
+    return "sonrisa" if mouth_open else "neutro"
+
+
 def main():
+    # Cargar modelos
     vectores_guardados = cargar_vectores()
-    print(f"[INFO] Vectores cargados: {list(vectores_guardados.keys())}")
+    texture_model = joblib.load("texture_model.pkl")  # Modelo de texturas
+    detector = dlib.get_frontal_face_detector()
+    predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+    gestos_model = joblib.load("gestos_model.pkl")  # Modelo de gestos (SVM)
 
-    # Abrimos la camara (0: camara principal, 1: camara secundaria)
     cap = cv2.VideoCapture(0)
-
-    # Ajusto resolucion, se puede bajar para un mejor rendimiento
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-
     registro_estado = {}
     ultimos_tiempos = {}
+    foto_counter = 0  # Contador para alternar entre foto 1 y 2
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        #Ajuste de frames, para mejor procesamiento
-     #   frame2 = cv2.resize(frame, (0,0), None, 0.25, 0.25)
-
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         ubicaciones = face_recognition.face_locations(rgb, model="hog")
         codificaciones = face_recognition.face_encodings(rgb, known_face_locations=ubicaciones)
 
         for box, encoding in zip(ubicaciones, codificaciones):
-            # aca se reconoce la persona
-            nombre = reconocer_persona(encoding, vectores_guardados)
+            top, right, bottom, left = box
+            face_roi = frame[top:bottom, left:right]
 
-            # Si reconoce a la persona registra su fichada
-            if nombre != "Desconocido":
-                registrar(nombre, registro_estado, ultimos_tiempos)
+            # Foto 1: Reconocimiento biométrico + textura
+            if foto_counter == 0:
+                nombre = reconocer_persona(encoding, vectores_guardados)
+                es_real = validar_textura(face_roi, texture_model)
 
-            # Independientemente de si lo reconocio o no, muestra el recuadro informando la situacion
-            mostrar_etiqueta(frame, box, nombre)
+                if nombre != "Desconocido" and es_real:
+                    print(f"Biometría OK: {nombre}")
+                    foto_counter = 1  # Pasamos a la segunda foto
+
+            # Foto 2: Gestos + textura
+            elif foto_counter == 1:
+                gesto = detectar_gesto(face_roi, predictor, gestos_model)
+                es_real = validar_textura(face_roi, texture_model)
+
+                if gesto == "sonrisa" and es_real:
+                    print("Gestos OK: Sonrisa detectada")
+                    registrar(nombre, registro_estado, ultimos_tiempos)
+                    foto_counter = 0  # Reiniciamos el ciclo
+
+            mostrar_etiqueta(frame, box, nombre if foto_counter == 0 else "Verificando gesto...")
 
         cv2.imshow("Shain Flow", frame)
         if cv2.waitKey(1) == 27:
