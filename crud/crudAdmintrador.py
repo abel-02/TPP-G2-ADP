@@ -6,40 +6,40 @@ from database import db
 
 class AdminCRUD:
     @staticmethod
-    def crear_empleado(dni: str, nombre: str, apellido: str, fecha_nacimiento: date,
-                       correo_electronico: str, telefono: str, direccion: str,
-                       genero: str, nacionalidad: str, estado_civil: str):
+    def crear_empleado(numero_identificacion: str, nombre: str, apellido: str, tipo_identificacion: str,
+                      fecha_nacimiento: date, correo_electronico: str, telefono: str, calle: str,
+                      numero_calle: str, localidad: str, genero: str, nacionalidad: str, estado_civil: str):
         """Registra un nuevo empleado con todos los campos"""
         try:
             with db.conn.cursor() as cur:
                 cur.execute(
                     """
                     INSERT INTO empleado (
-                        dni, nombre, apellido, fecha_nacimiento,
-                        correo_electronico, telefono, direccion, genero,
-                        nacionalidad, estado_civil
+                        nombre, apellido, tipo_identificacion, numero_identificacion,
+                        fecha_nacimiento, correo_electronico, telefono, calle,
+                        numero_calle, localidad, genero, nacionalidad, estado_civil
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id_empleado, dni, nombre, apellido
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id_empleado, numero_identificacion, nombre, apellido
                     """,
                     (
-                        dni, nombre, apellido, fecha_nacimiento,
-                        correo_electronico, telefono, direccion,
-                        genero, nacionalidad, estado_civil
+                        nombre, apellido, tipo_identificacion, numero_identificacion,
+                        fecha_nacimiento, correo_electronico, telefono, calle,
+                        numero_calle, localidad, genero, nacionalidad, estado_civil
                     )
                 )
                 empleado = cur.fetchone()
                 db.conn.commit()
                 return {
                     "id_empleado": empleado[0],
-                    "dni": empleado[1],
+                    "numero_identificacion": empleado[1],
                     "nombre": empleado[2],
                     "apellido": empleado[3]
                 }
         except psycopg2.IntegrityError as e:
             db.conn.rollback()
-            if "dni" in str(e):
-                raise ValueError("El DNI ya está registrado")
+            if "numero_identificacion" in str(e):
+                raise ValueError("El número de identificación ya está registrado")
             raise ValueError(f"Error de integridad: {e}")
         except Exception as e:
             db.conn.rollback()
@@ -51,7 +51,7 @@ class AdminCRUD:
         with db.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id_empleado, dni, nombre, apellido, correo_electronico, telefono
+                SELECT id_empleado, numero_identificacion, nombre, apellido, correo_electronico, telefono
                 FROM empleado
                 ORDER BY apellido, nombre
                 """
@@ -59,7 +59,7 @@ class AdminCRUD:
             return [
                 {
                     "id_empleado": row[0],
-                    "dni": row[1],
+                    "numero_identificacion": row[1],
                     "nombre": row[2],
                     "apellido": row[3],
                     "correo": row[4],
@@ -74,9 +74,9 @@ class AdminCRUD:
         with db.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id_empleado, dni, nombre, apellido, fecha_nacimiento,
-                       correo_electronico, telefono, direccion, genero,
-                       nacionalidad, estado_civil
+                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion,
+                       fecha_nacimiento, correo_electronico, telefono, calle,
+                       numero_calle, localidad, genero, nacionalidad, estado_civil
                 FROM empleado
                 WHERE id_empleado = %s
                 """,
@@ -86,16 +86,19 @@ class AdminCRUD:
             if result:
                 return {
                     "id_empleado": result[0],
-                    "dni": result[1],
-                    "nombre": result[2],
-                    "apellido": result[3],
-                    "fecha_nacimiento": result[4],
-                    "correo_electronico": result[5],
-                    "telefono": result[6],
-                    "direccion": result[7],
-                    "genero": result[8],
-                    "nacionalidad": result[9],
-                    "estado_civil": result[10]
+                    "nombre": result[1],
+                    "apellido": result[2],
+                    "tipo_identificacion": result[3],
+                    "numero_identificacion": result[4],
+                    "fecha_nacimiento": result[5],
+                    "correo_electronico": result[6],
+                    "telefono": result[7],
+                    "calle": result[8],
+                    "numero_calle": result[9],
+                    "localidad": result[10],
+                    "genero": result[11],
+                    "nacionalidad": result[12],
+                    "estado_civil": result[13]
                 }
             return None
 
@@ -195,22 +198,22 @@ class AdminCRUD:
             ]
 
     @staticmethod
-    def buscar_empleado_por_dni(dni: str):
-        """Busca un empleado por DNI"""
+    def buscar_empleado_por_numero_identificacion(numero_identificacion: str):
+        """Busca un empleado por número de identificación"""
         with db.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id_empleado, dni, nombre, apellido, correo_electronico, telefono
+                SELECT id_empleado, numero_identificacion, nombre, apellido, correo_electronico, telefono
                 FROM empleado
-                WHERE dni = %s
+                WHERE numero_identificacion = %s
                 """,
-                (dni,)
+                (numero_identificacion,)
             )
             result = cur.fetchone()
             if result:
                 return {
                     "id_empleado": result[0],
-                    "dni": result[1],
+                    "numero_identificacion": result[1],
                     "nombre": result[2],
                     "apellido": result[3],
                     "correo": result[4],

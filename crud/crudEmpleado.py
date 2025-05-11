@@ -4,31 +4,36 @@ from database import db
 
 
 class Empleado:
-    def __init__(self, id_empleado=None, nombre=None, apellido=None, dni=None,
+    def __init__(self, id_empleado=None, nombre=None, apellido=None, tipo_identificacion=None, numero_identificacion=None,
                  fecha_nacimiento=None, correo_electronico=None, telefono=None,
-                 direccion=None, genero=None, nacionalidad=None, estado_civil=None):
+                 calle=None, numero_calle=None, localidad=None, provincia=None, genero=None, nacionalidad=None, estado_civil=None):
         self.id_empleado = id_empleado or str(uuid.uuid4())
         self.nombre = nombre
         self.apellido = apellido
-        self.dni = dni
+        self.tipo_identificacion= tipo_identificacion
+        self.numero_identificacion= numero_identificacion
         self.fecha_nacimiento = fecha_nacimiento
         self.correo_electronico = correo_electronico
         self.telefono = telefono
-        self.direccion = direccion
+        self.calle= calle
+        self.numero_calle= numero_calle,
+        self.localidad= localidad
+        self.provincia= provincia
         self.genero = genero
         self.nacionalidad = nacionalidad
         self.estado_civil = estado_civil
 
     @staticmethod
-    def crear(id_empleado, nombre, apellido, dni, fecha_nacimiento,
-              correo_electronico, telefono, direccion, genero, nacionalidad, estado_civil):
+    def crear(id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion,
+            fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad,
+              genero, nacionalidad, estado_civil):
         """Crea un nuevo empleado"""
         try:
             with db.conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO empleados (id_empleado, nombre, apellido, dni, fecha_nacimiento, 
-                    correo_electronico, telefono, direccion, genero, nacionalidad, estado_civil)
+                    INSERT INTO empleados (id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad, genero, nacionalidad, estado_civil)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id_empleado
                 """,
@@ -36,11 +41,14 @@ class Empleado:
                     str(uuid.uuid4()),  # Generamos nuevo UUID
                     nombre,
                     apellido,
-                    dni,
+                    tipo_identificacion,
+                    numero_identificacion,
                     fecha_nacimiento,
                     correo_electronico,
                     telefono,
-                    direccion,
+                    calle,
+                    numero_calle,
+                    localidad,
                     genero,
                     nacionalidad,
                     estado_civil
@@ -59,9 +67,9 @@ class Empleado:
         with db.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id_empleado, nombre, apellido, dni, fecha_nacimiento,
-                       correo_electronico, telefono, direccion, genero,
-                       nacionalidad, estado_civil
+                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
+                    localidad, provincia, genero, nacionalidad, estado_civil
                 FROM empleados
                 WHERE id_empleado = %s
                 """,
@@ -73,44 +81,53 @@ class Empleado:
                     id_empleado=result[0],
                     nombre=result[1],
                     apellido=result[2],
-                    dni=result[3],
-                    fecha_nacimiento=result[4],
-                    correo_electronico=result[5],
-                    telefono=result[6],
-                    direccion=result[7],
-                    genero=result[8],
-                    nacionalidad=result[9],
-                    estado_civil=result[10]
+                    tipo_identificacion=result[3],
+                    numero_identificacion=result[4],
+                    fecha_nacimiento=result[5],
+                    correo_electronico=result[6],
+                    telefono=result[7],
+                    calle=result[8],
+                    numero_calle=result[9],
+                    localidad=result[10],
+                    provincia=result[11],
+                    genero=result[12],
+                    nacionalidad=result[13],
+                    estado_civil=result[14]
                 )
-            return None #En caso de no encontrar
+            return None  # En caso de no encontrar
 
     @staticmethod
-    def obtener_por_dni(dni):
-        """Obtiene un empleado por su DNI"""
+    def obtener_por_numero_identificacion(numero_identificacion):
+        """Obtiene un empleado por su número de identificación"""
         with db.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id_empleado, nombre, apellido, dni, fecha_nacimiento,
-                       correo_electronico, telefono, direccion, genero,
-                       nacionalidad, estado_civil
+                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
+                    localidad, provincia, genero, nacionalidad, estado_civil
                 FROM empleados
-                WHERE dni = %s
+                WHERE numero_identificacion = %s
                 """,
-                (dni,))
+                (numero_identificacion,)
+            )
             result = cur.fetchone()
             if result:
                 return Empleado(
                     id_empleado=result[0],
                     nombre=result[1],
                     apellido=result[2],
-                    dni=result[3],
-                    fecha_nacimiento=result[4],
-                    correo_electronico=result[5],
-                    telefono=result[6],
-                    direccion=result[7],
-                    genero=result[8],
-                    nacionalidad=result[9],
-                    estado_civil=result[10]
+                    tipo_identificacion=result[3],
+                    numero_identificacion=result[4],
+                    fecha_nacimiento=result[5],
+                    correo_electronico=result[6],
+                    telefono=result[7],
+                    calle=result[8],
+                    numero_calle=result[9],
+                    localidad=result[10],
+                    provincia=result[11],
+                    genero=result[12],
+                    nacionalidad=result[13],
+                    estado_civil=result[14]
                 )
             return None
 
@@ -333,3 +350,23 @@ class RegistroHorario:
                 entrada = None
 
         return round(horas, 2)
+
+
+    """
+    dni_buscar = "45893639"
+    empleado_encontrado = Empleado.obtener_por_dni(dni_buscar)
+
+    if empleado_encontrado:
+        print("Empleado encontrado:")
+        print(f"Nombre: {empleado_encontrado.nombre} {empleado_encontrado.apellido}")
+        print(f"DNI: {empleado_encontrado.dni}")
+        print(f"Email: {empleado_encontrado.correo_electronico}")
+    else:
+        print(f"No se encontró empleado con DNI: {dni_buscar}")
+
+#prueba de asistencia
+    empleado = Empleado.obtener_por_dni("45893639")  # Usa un DNI que exista
+    # O:
+    """
+    #empleado = Empleado.obtener_por_id("")
+
