@@ -5,11 +5,11 @@ import os
 class Database:
     # Configuración centralizada
     _config = {
-        "dbname": "shain_flow",
-        "user": "equipo_tp",
-        "password": "NicoYazawa",  # ¡Usa variables de entorno en producción!
-        "host": "100.107.247.95",
-        "port": "5432"
+        "dbname": os.getenv("DB_NAME"),  # shain_flow
+        "user": os.getenv("DB_USER"),  # equipo_tp
+        "password": os.getenv("DB_PASSWORD"),  # NicoYazawa (desde variables)
+        "host": os.getenv("DB_HOST"),  # 100.107.247.95 o IP de Tailscale
+        "port": os.getenv("DB_PORT", "5432")  # Usa 5432 como valor por defecto
     }
 
     def __init__(self):
