@@ -18,7 +18,7 @@ app.add_middleware(
 # Registrar las rutas
 app.include_router(fichar.router, prefix="/api")
 
-'''
+
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
@@ -157,3 +157,4 @@ async def fichar_gesto(imagen: UploadFile = File(...)):
 @app.get("/fichadas")
 def obtenerFichadas():
     return obtener_fichajes()
+'''
