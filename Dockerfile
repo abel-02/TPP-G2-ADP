@@ -4,7 +4,7 @@ FROM python:3.9-slim
 # --- 1. Instala dependencias del sistema ---
 RUN apt-get update && apt-get install -y \
     curl \
-    netcat \
+    netcat-openbsd \
     libpq-dev \
     gcc \
     && rm -rf /var/lib/apt/lists/*
