@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 import psycopg2
 from psycopg2 import sql
-from database import db
+from .database import db
 
 
 class AdminCRUD:

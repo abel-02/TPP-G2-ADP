@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta, date, time
-from database import db
+from .database import db
 
 
 class Empleado:
