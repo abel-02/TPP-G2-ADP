@@ -3,10 +3,10 @@ FROM python:3.9-slim
 
 # --- 1. Instala dependencias del sistema ---
 RUN apt-get update && apt-get install -y \
-    curl \        # curl para instalar Tailscale
-    netcat \      # netcat para verificar conexiones a la DB
-    libpq-dev \   # requerido para psycopg2 (PostgreSQL)
-    gcc \         # necesario para compilar algunas dependencias
+    curl \
+    netcat \
+    libpq-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # O mejor: sin comentarios en línea
