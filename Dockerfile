@@ -3,11 +3,19 @@ FROM python:3.9-slim
 
 # --- 1. Instala dependencias del sistema ---
 RUN apt-get update && apt-get install -y \
-    curl \          # Para instalar Tailscale
-    netcat \        # Para verificar conexiones a la DB
-    libpq-dev \     # Requerido para psycopg2 (PostgreSQL)
-    gcc \           # Necesario para compilar algunas dependencias
+    curl \        # curl para instalar Tailscale
+    netcat \      # netcat para verificar conexiones a la DB
+    libpq-dev \   # requerido para psycopg2 (PostgreSQL)
+    gcc \         # necesario para compilar algunas dependencias
     && rm -rf /var/lib/apt/lists/*
+
+# O mejor: sin comentarios en línea
+# RUN apt-get update && apt-get install -y \
+#     curl \
+#     netcat \
+#     libpq-dev \
+#     gcc \
+#     && rm -rf /var/lib/apt/lists/*
 
 # --- 2. Instala Tailscale ---
 RUN curl -fsSL https://tailscale.com/install.sh | sh
@@ -23,14 +31,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # --- 5. Prepara Tailscale ---
-# Crea directorio para el socket y da permisos
 RUN mkdir -p /var/run/tailscale && chmod 777 /var/run/tailscale
-
-# Copia el script de Tailscale y hazlo ejecutable
 COPY tailscale.sh /usr/local/bin/tailscale.sh
 RUN chmod +x /usr/local/bin/tailscale.sh
 
-# --- 6. Variables de entorno (valores por defecto) ---
+# --- 6. Variables de entorno ---
 ENV DB_HOST=""
 ENV DB_PORT="5432"
 ENV DB_NAME=""
