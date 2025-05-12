@@ -1,3 +1,4 @@
+
 # Usa una imagen base ligera de Python
 FROM python:3.9-slim
 
@@ -9,13 +10,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# O mejor: sin comentarios en línea
-# RUN apt-get update && apt-get install -y \
-#     curl \
-#     netcat \
-#     libpq-dev \
-#     gcc \
-#     && rm -rf /var/lib/apt/lists/*
 
 # --- 2. Instala Tailscale ---
 RUN curl -fsSL https://tailscale.com/install.sh | sh
@@ -44,4 +38,4 @@ ENV DB_PASSWORD=""
 ENV TAILSCALE_AUTHKEY=""
 
 # --- 7. Comando de inicio ---
-CMD ["sh", "-c", "/usr/local/bin/tailscale.sh && python tu_archivo_principal.py"]
+CMD ["sh", "-c", "/usr/local/bin/tailscale.sh && main.py"]

@@ -18,3 +18,5 @@ tailscale up \
 # 4. Verificar conexión y mostrar estado
 tailscale status
 tailscale ping ${DB_HOST}  # Verifica que puedes alcanzar la IP de tu DB
+
+python main.py
