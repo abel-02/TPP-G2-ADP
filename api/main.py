@@ -1,8 +1,29 @@
 from fastapi import FastAPI, HTTPException, Depends
-from models import Empleado, RegistroHorario
+from crud import crudEmpleado, crudAdmintrador
 import uuid
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta, date, time
+from crud.crudEmpleado import RegistroHorario
+from crud.crudEmpleado import Empleado
+from pydantic import BaseModel
+from typing import List
+
+
+class EmpleadoUpdate(BaseModel):
+    telefono: Optional[str] = None
+    correo_electronico: Optional[str] = None
+    calle: Optional[str] = None
+    numero_calle: Optional[str] = None
+    localidad: Optional[str] = None
+    partido: Optional[str] = None  # Nueva variable agregada
+    provincia: Optional[str] = None
+
+class AsistenciaManual(BaseModel):
+    id_empleado: int
+    tipo: str
+    fecha: date
+    hora: time
+    estado_asistencia: Optional[str] = None
 
 app = FastAPI()
 
@@ -50,3 +71,69 @@ def obtener_registros(
 def calcular_horas(empleado_id: str, año: int, mes: int):
     horas = RegistroHorario.calcular_horas_mensuales(empleado_id, año, mes)
     return {"horas_trabajadas": horas}
+
+# Actualizar datos de empleado
+@app.put("/empleados/{empleado_id}/datos-personales")
+def actualizar_datos_empleado(
+    empleado_id: int,
+    datos: EmpleadoUpdate,
+    # Agrega autenticación para que solo el empleado o admin pueda actualizar
+):
+    try:
+        empleado_actualizado = Empleado.actualizar_datos_personales(
+            id_empleado=empleado_id,
+            telefono=datos.telefono,
+            correo_electronico=datos.correo_electronico,
+            calle=datos.calle,
+            numero_calle=datos.numero_calle,
+            localidad=datos.localidad,
+            partido=datos.partido,  # Nueva variable agregada
+            provincia=datos.provincia
+        )
+        return empleado_actualizado.__dict__
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Registro manual de asistencia (admin)
+@app.post("/admin/registros/manual", tags=["Admin"])
+def registrar_asistencia_manual(
+    registro: AsistenciaManual,
+    # Agrega dependencia de autenticación de admin:
+    # current_user: dict = Depends(verificar_admin)
+):
+    try:
+        nuevo_registro = RegistroHorario.registrar_asistencia_manual(
+            id_empleado=registro.id_empleado,
+            tipo=registro.tipo,
+            fecha=registro.fecha,
+            hora=registro.hora,
+            estado_asistencia=registro.estado_asistencia
+        )
+        return nuevo_registro.__dict__
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+# Obtener todos los empleados (para listados)
+@app.get("/empleados/", response_model=List[dict])
+def listar_empleados(pagina: int = 1, limite: int = 10):
+    try:
+        empleados = Empleado.obtener_todos(pagina=pagina, limite=limite)
+        return [e.__dict__ for e in empleados]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Búsqueda avanzada de empleados
+@app.get("/empleados/buscar/", response_model=List[dict])
+def buscar_empleados(
+    nombre: Optional[str] = None,
+    apellido: Optional[str] = None,
+    dni: Optional[str] = None
+):
+    empleados = Empleado.buscar_avanzado(
+        nombre=nombre,
+        apellido=apellido,
+        dni=dni
+    )
+    return [e.__dict__ for e in empleados]

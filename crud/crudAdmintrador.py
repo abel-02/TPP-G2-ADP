@@ -8,7 +8,7 @@ class AdminCRUD:
     @staticmethod
     def crear_empleado(numero_identificacion: str, nombre: str, apellido: str, tipo_identificacion: str,
                       fecha_nacimiento: date, correo_electronico: str, telefono: str, calle: str,
-                      numero_calle: str, localidad: str, genero: str, nacionalidad: str, estado_civil: str):
+                      numero_calle: str, localidad: str, partido: str, genero: str, nacionalidad: str, estado_civil: str):
         """Registra un nuevo empleado con todos los campos"""
         try:
             with db.conn.cursor() as cur:
@@ -17,15 +17,15 @@ class AdminCRUD:
                     INSERT INTO empleado (
                         nombre, apellido, tipo_identificacion, numero_identificacion,
                         fecha_nacimiento, correo_electronico, telefono, calle,
-                        numero_calle, localidad, genero, nacionalidad, estado_civil
+                        numero_calle, localidad, partido, genero, nacionalidad, estado_civil
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id_empleado, numero_identificacion, nombre, apellido
                     """,
                     (
                         nombre, apellido, tipo_identificacion, numero_identificacion,
                         fecha_nacimiento, correo_electronico, telefono, calle,
-                        numero_calle, localidad, genero, nacionalidad, estado_civil
+                        numero_calle, localidad, partido, genero, nacionalidad, estado_civil
                     )
                 )
                 empleado = cur.fetchone()
@@ -76,7 +76,7 @@ class AdminCRUD:
                 """
                 SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion,
                        fecha_nacimiento, correo_electronico, telefono, calle,
-                       numero_calle, localidad, genero, nacionalidad, estado_civil
+                       numero_calle, localidad, partido, genero, nacionalidad, estado_civil
                 FROM empleado
                 WHERE id_empleado = %s
                 """,
@@ -96,9 +96,10 @@ class AdminCRUD:
                     "calle": result[8],
                     "numero_calle": result[9],
                     "localidad": result[10],
-                    "genero": result[11],
-                    "nacionalidad": result[12],
-                    "estado_civil": result[13]
+                    "partido": result[11],
+                    "genero": result[12],
+                    "nacionalidad": result[13],
+                    "estado_civil": result[14]
                 }
             return None
 
