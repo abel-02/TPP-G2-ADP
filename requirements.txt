@@ -2,7 +2,7 @@ annotated-types==0.7.0
 anyio==4.9.0
 click==8.2.0
 colorama==0.4.6
-
+gunicorn==23.0.0
 
 
 fastapi==0.115.12
