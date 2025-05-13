@@ -24,10 +24,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # --- 4. Copia los archivos de la app ---
 COPY . .
 
-# --- 5. Prepara Tailscale ---
-RUN mkdir -p /var/run/tailscale && chmod 777 /var/run/tailscale
-COPY tailscale.sh /usr/local/bin/tailscale.sh
-RUN chmod +x /usr/local/bin/tailscale.sh
 
 # --- 6. Variables de entorno ---
 ENV DB_HOST=""
@@ -37,5 +33,3 @@ ENV DB_USER=""
 ENV DB_PASSWORD=""
 ENV TAILSCALE_AUTHKEY=""
 
-# --- 7. Comando de inicio ---
-CMD ["sh", "-c", "/usr/local/bin/tailscale.sh && main.py"]
