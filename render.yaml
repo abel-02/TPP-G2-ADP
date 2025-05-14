@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: fastapi-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://database_labo_owner:npg_T2tevF4uMhZB@ep-gentle-poetry-a48jtsf3-pooler.us-east-1.aws.neon.tech/database_labo?sslmode=require
