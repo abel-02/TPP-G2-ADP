@@ -28,14 +28,31 @@ class AsistenciaManual(BaseModel):
 app = FastAPI()
 
 @app.post("/empleados/")
-def crear_empleado(dni: str, nombre: str, apellido: str):
+def crear_empleado(nombre: str,apellido: str, tipo_identificacion: str, numero_identificacion: str,
+                        fecha_nacimiento: str,correo_electronico: str, telefono: str,
+                        calle: str, numero_calle,localidad: str,partido: str,
+                        provincia: str,genero,nacionalidad: str,estado_civil: str):
     try:
-        empleado = Empleado.crear(dni, nombre, apellido)
+        empleado = Empleado.crear(nombre,apellido,tipo_identificacion, numero_identificacion,
+                        fecha_nacimiento,correo_electronico, telefono,
+                        calle, numero_calle,localidad,partido,
+                        provincia,genero,nacionalidad,estado_civil)
         return {
-            "id": empleado.id,
-            "dni": empleado.dni,
             "nombre": empleado.nombre,
-            "apellido": empleado.apellido
+            "apellido": empleado.apellido,
+            "tipo_identificacion": empleado.tipo_identificacion,
+            "numero_identificacion": empleado.numero_identificacion,
+            "fecha_nacimiento": empleado.fecha_nacimiento,
+            "correo_electronico": empleado.correo_electronico,
+            "telefono": empleado.telefono,
+            "calle": empleado.calle,
+            "numero_calle": empleado.numero_calle,
+            "localidad": empleado.localidad,
+            "partido": empleado.partido,
+            "provincia": empleado.provincia,
+            "genero": empleado.genero,
+            "nacionalidad": empleado.nacionalidad,
+            "estado_civil": empleado.estado_civil
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
