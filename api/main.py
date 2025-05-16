@@ -53,6 +53,7 @@ def crear_empleado(nombre: str,apellido: str, tipo_identificacion: str, numero_i
             "genero": empleado.genero,
             "nacionalidad": empleado.nacionalidad,
             "estado_civil": empleado.estado_civil
+
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
