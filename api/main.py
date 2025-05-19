@@ -12,6 +12,7 @@ from crud.crudEmpleado import RegistroHorario
 from crud.crudEmpleado import Empleado
 from pydantic import BaseModel
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 
 '''
 # Dato biometrico, lo voy a usar para probar el endpoint regitrar horario
@@ -32,6 +33,9 @@ def obtenerDatoBiometrico():
         vector_neutro = extraer_vector(contenido)
     return vector_neutro
 '''
+
+
+
 
 class Empleado(BaseModel):
     nombre: str
@@ -67,6 +71,16 @@ class AsistenciaManual(BaseModel):
     estado_asistencia: Optional[str] = None
 
 app = FastAPI()
+
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins="*",  # o ["*"] para permitir todos
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/empleados/")
 def crear_empleado(empleado: Empleado):
