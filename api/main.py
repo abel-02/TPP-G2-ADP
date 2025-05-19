@@ -4,8 +4,6 @@ import cv2
 import face_recognition
 import numpy as np
 from fastapi import FastAPI, HTTPException, Depends
-from crud import crudEmpleado, crudAdmintrador
-import uuid
 from typing import Optional
 from datetime import datetime, timedelta, date, time
 
