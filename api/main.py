@@ -98,7 +98,7 @@ def obtener_empleado(numero_identificacion: str):
     if not empleado:
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
     return empleado
-
+'''
 # No puedo probarlo porque no hay registros laborales
 @app.post("/registros/")
 def registrar_horario(empleado_id: str, vectorBiometrico: str):
@@ -107,7 +107,7 @@ def registrar_horario(empleado_id: str, vectorBiometrico: str):
         return registro
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
+'''
 
 @app.get("/registros/{empleado_id}")
 def obtener_registros(
