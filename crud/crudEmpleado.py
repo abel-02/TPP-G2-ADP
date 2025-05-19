@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, date, time
 from .database import db
-
+import numpy as np
 
 class Empleado:
     def __init__(self, id_empleado=None, nombre=None, apellido=None, tipo_identificacion=None,
@@ -180,13 +180,13 @@ class RegistroHorario:
         self.vector_capturado = vector_capturado
 
     @staticmethod
-    def registrar_asistencia(id_empleado: int, vector_biometrico: str):
+    def registrar_asistencia(id_empleado: int, vector_biometrico: np.ndarray):
         """
         Registra una nueva asistencia biométrica con toda la lógica de validación
 
         Args:
             id_empleado (int): ID del empleado
-            vector_biometrico (str): Vector biométrico capturado
+            vector_biometrico (np.ndarray): Vector biométrico capturado (tipo numpy array)
 
         Returns:
             RegistroHorario: Instancia del nuevo registro
@@ -214,17 +214,14 @@ class RegistroHorario:
                 fecha_actual = now.date()
                 hora_actual = now.time()
 
-                # Convertir a datetime para comparaciones
                 entrada_dt = datetime.combine(fecha_actual, hora_inicio_turno)
                 salida_dt = datetime.combine(fecha_actual, hora_fin_turno)
                 actual_dt = datetime.combine(fecha_actual, hora_actual)
 
-                # Tolerancias
                 tiempo_permitido_entrada_temprana = timedelta(minutes=60)
                 tolerancia_a_tiempo = timedelta(minutes=5)
                 retraso_minimo = timedelta(minutes=15)
 
-                # Lógica de determinación
                 if entrada_dt - tiempo_permitido_entrada_temprana < actual_dt < entrada_dt:
                     tipo = "Entrada"
                     estado_asistencia = "Temprana"
@@ -253,6 +250,9 @@ class RegistroHorario:
                         tipo = "Salida"
                         estado_asistencia = "Fuera de rango"
 
+                # ✅ Convertir el vector numpy a bytes
+                vector_bytes = vector_biometrico.tobytes()
+
                 # 3. Insertar en la base de datos
                 cur.execute(
                     """
@@ -277,7 +277,7 @@ class RegistroHorario:
                         estado_asistencia,
                         turno,
                         puesto,
-                        vector_biometrico
+                        vector_bytes  # 👈 insertar como bytes
                     )
                 )
 
@@ -491,19 +491,23 @@ class RegistroHorario:
 
     @staticmethod
     def calcular_horas_mensuales(empleado_id, año, mes):
-        """Calcula horas trabajadas en un mes"""
-        registros = RegistroHorario.obtener_registros_mensuales(empleado_id, año, mes)
-        horas = 0.0
-        entrada = None
+        """Calcula la suma total de horas trabajadas en un mes"""
+        inicio = datetime(año, mes, 1).date()
+        fin = (inicio + timedelta(days=31)).replace(day=1)
 
-        for reg in registros:
-            if reg.tipo == 'entrada':
-                entrada = reg.fecha_hora
-            elif entrada and reg.tipo == 'salida':
-                horas += (reg.fecha_hora - entrada).total_seconds() / 3600
-                entrada = None
-
-        return round(horas, 2)
+        with db.conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT SUM(horas_trabajadas)
+                FROM registro_jornada
+                WHERE id_empleado = %s
+                AND fecha >= %s
+                AND fecha < %s
+                """,
+                (empleado_id, inicio, fin)
+            )
+            resultado = cur.fetchone()
+            return resultado[0] if resultado[0] else 0.0
 
     @staticmethod
     def actualizar_datos_personales(id_empleado: int, telefono: str = None,

@@ -1,11 +1,11 @@
-#import os
+import os
 
-#import cv2
-#import face_recognition
+import cv2
+import face_recognition
 import numpy as np
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from typing import Optional
-from datetime import datetime, timedelta, date, time
+from datetime import date, time
 
 from crud.crudAdmintrador import AdminCRUD
 from crud.crudEmpleado import RegistroHorario
@@ -13,7 +13,7 @@ from crud.crudEmpleado import Empleado
 from pydantic import BaseModel
 from typing import List
 
-'''
+
 # Dato biometrico, lo voy a usar para probar el endpoint regitrar horario
 # Funcion que tengo en la versión 3 del reco (otro repo)
 def extraer_vector(imagen_bytes: bytes):
@@ -31,7 +31,7 @@ def obtenerDatoBiometrico():
         contenido = imagen.read()
         vector_neutro = extraer_vector(contenido)
     return vector_neutro
-'''
+
 
 class Empleado(BaseModel):
     nombre: str
