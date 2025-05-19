@@ -3,7 +3,7 @@ import psycopg2
 from psycopg2 import sql
 from .database import db
 from typing import Tuple, List
-from crudEmpleado import Empleado
+from crud.crudEmpleado import Empleado
 from typing import Optional
 
 
