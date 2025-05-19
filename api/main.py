@@ -1,7 +1,7 @@
 #import os
 
 #import cv2
-import face_recognition
+#import face_recognition
 import numpy as np
 from fastapi import FastAPI, HTTPException, Depends
 from typing import Optional
