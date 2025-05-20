@@ -93,6 +93,23 @@ class Empleado:
             db.conn.rollback()
             raise ValueError(f"Error al crear empleado: {e}")
 
+    from datetime import date
+
+    @staticmethod
+    def crear_cuenta(usuario):
+        with db.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, contrasena, esta_Activo, fecha_activacion, motivo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id_usuario
+                """,
+                (2, 2, usuario.nombre_usuario, usuario.contrasena, True, date.today(), "")
+            )
+            id_usuario = cur.fetchone()[0]
+            db.conn.commit()
+            return {"mensaje": "Usuario registrado correctamente", "id_usuario": id_usuario}
+
     @staticmethod
     def obtener_por_id(id_empleado):
         """Obtiene un empleado por su ID"""

@@ -34,7 +34,9 @@ def obtenerDatoBiometrico():
     return vector_neutro
 '''
 
-
+class Usuario(BaseModel):
+    nombre_usuario: str
+    contrasena: str  # Considera encriptarla con bcrypt
 
 
 class Empleado(BaseModel):
@@ -206,3 +208,12 @@ def buscar_empleados(
         dni=dni
     )
     return [e for e in empleados]
+
+
+@app.post("/usuarios/")
+def registrar_usuario(usuario: Usuario):
+    try:
+        respuesta = AdminCRUD.crear_cuenta(usuario)  # Captura la respuesta de la función
+        return respuesta  # Devuelve el mensaje de éxito
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,6 +1,5 @@
-from datetime import datetime, date, time
+from datetime import date, time
 import psycopg2
-from psycopg2 import sql
 from .database import db
 from typing import Tuple, List
 from crud.crudEmpleado import Empleado
@@ -308,3 +307,18 @@ class AdminCRUD:
             ]
 
         return empleados, total
+
+    @staticmethod
+    def crear_cuenta(usuario):
+        with db.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, contrasena, esta_Activo, fecha_activacion, motivo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id_usuario
+                """,
+                (2, 1, usuario.nombre_usuario, usuario.contrasena, True, date.today(), "")
+            )
+            id_usuario = cur.fetchone()[0]
+            db.conn.commit()
+            return {"mensaje": "Usuario registrado correctamente", "id_usuario": id_usuario}
