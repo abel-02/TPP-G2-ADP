@@ -52,7 +52,8 @@ class AdminCRUD:
     @staticmethod
     def obtener_empleados():
         """Lista todos los empleados con información básica"""
-        with db.conn.cursor() as cur:
+        conn, cur = db.get_conn_cursor()
+        try:
             cur.execute(
                 """
                 SELECT id_empleado, numero_identificacion, nombre, apellido, correo_electronico, telefono
@@ -71,6 +72,12 @@ class AdminCRUD:
                 }
                 for row in cur.fetchall()
             ]
+        except Exception as e:
+            print(f"❌ Error en obtener_empleados: {e}")
+            return []
+        finally:
+            cur.close()
+            db.put_conn(conn)
 
     @staticmethod
     def obtener_detalle_empleado(numero_identificacion: str):

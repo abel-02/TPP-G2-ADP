@@ -19,38 +19,28 @@ class Database:
     }
 
     def __init__(self):
-        self.conn = None
-        self.connect()
-
-    def connect(self):
-        """Establece la conexión a la BD"""
         try:
-            self.conn = psycopg2.connect(**self._config)
-            print("✅ Conexión exitosa a Supabase PostgreSQL")
+            self.pool = pool.SimpleConnectionPool(1, 10, **self._config)
+            print("✅ Pool de conexiones a PostgreSQL iniciado")
         except Exception as e:
-            print(f"❌ Error al conectar: {e}")
+            print(f"❌ Error al crear pool de conexiones: {e}")
             raise
 
-    def get_cursor(self):
-        """Devuelve un cursor para ejecutar queries"""
-        if not self.conn or self.conn.closed:
-            self.connect()  # Reconecta si la conexión está cerrada
-        return self.conn.cursor()
+    def get_conn_cursor(self):
+        """Obtiene una conexión y cursor, debes cerrarlos después de usarlos."""
+        conn = self.pool.getconn()
+        return conn, conn.cursor()
 
-    def close(self):
-        """Cierra conexión y cursor"""
-        if self.conn and not self.conn.closed:
-            self.conn.close()
-            print("🔌 Conexión cerrada")
+    def put_conn(self, conn):
+        """Devuelve la conexión al pool"""
+        if conn:
+            self.pool.putconn(conn)
 
-    # Método estático para connection pooling (opcional)
-    @staticmethod
-    def get_connection_pool(minconn=1, maxconn=10):
-        return pool.SimpleConnectionPool(
-            minconn=minconn,
-            maxconn=maxconn,
-            **Database._config
-        )
+    def close_all(self):
+        """Cierra todas las conexiones del pool"""
+        self.pool.closeall()
+        print("🔌 Todas las conexiones cerradas")
 
-# Instancia global (para uso en otros módulos)
+
+# Instancia global
 db = Database()
