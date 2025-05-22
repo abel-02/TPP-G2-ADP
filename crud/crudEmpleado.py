@@ -3,13 +3,14 @@ from datetime import datetime, timedelta, date, time
 from .database import db
 import numpy as np
 
+
+
 class Empleado:
     def __init__(self, id_empleado=None, nombre=None, apellido=None, tipo_identificacion=None,
                  numero_identificacion=None, fecha_nacimiento=None, correo_electronico=None,
                  telefono=None, calle=None, numero_calle=None, localidad=None, partido=None, provincia=None,
                  genero=None, nacionalidad=None, estado_civil=None):
 
-        # Validar provincia
         provincias_validas = ['Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba',
                               'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa',
                               'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro',
@@ -19,18 +20,15 @@ class Empleado:
         if provincia and provincia not in provincias_validas:
             raise ValueError(f"Provincia inválida. Opciones válidas: {provincias_validas}")
 
-        # Validar nacionalidad
         nacionalidades_validas = ['Argentina', 'Brasil', 'Chile', 'Uruguay', 'Paraguay',
                                   'Bolivia', 'Perú', 'Ecuador', 'Colombia', 'Venezuela', 'México']
         if nacionalidad and nacionalidad not in nacionalidades_validas:
             raise ValueError(f"Nacionalidad inválida. Opciones válidas: {nacionalidades_validas}")
 
-        # Validar tipo_identificacion
         tipos_id_validos = ['DNI', 'Pasaporte', 'Cédula']
         if tipo_identificacion and tipo_identificacion not in tipos_id_validos:
             raise ValueError(f"Tipo de identificación inválido. Opciones válidas: {tipos_id_validos}")
 
-        # Validar género
         generos_validos = ['Masculino', 'Femenino', 'No binario', 'Prefiere no especificar', 'Otro']
         if genero and genero not in generos_validos:
             raise ValueError(f"Género inválido. Opciones válidas: {generos_validos}")
@@ -53,134 +51,97 @@ class Empleado:
         self.estado_civil = estado_civil
 
     @staticmethod
-    def crear(id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion,
-            fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad,
-            partido, provincia, genero, nacionalidad, estado_civil):
+    def crear(nombre, apellido, tipo_identificacion, numero_identificacion,
+              fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad,
+              partido, provincia, genero, nacionalidad, estado_civil):
         """Crea un nuevo empleado"""
         try:
-            with db.conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO empleados (id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
-                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad, partido, provincia, 
-                    genero, nacionalidad, estado_civil)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id_empleado
-                    """,
-                    (
-                        str(uuid.uuid4()),  # Generamos nuevo UUID
-                        nombre,
-                        apellido,
-                        tipo_identificacion,
-                        numero_identificacion,
-                        fecha_nacimiento,
-                        correo_electronico,
-                        telefono,
-                        calle,
-                        numero_calle,
-                        localidad,
-                        partido,
-                        provincia,
-                        genero,
-                        nacionalidad,
-                        estado_civil
-                    )
+            conn, cur = db.get_conn_cursor()
+            id_empleado = str(uuid.uuid4())
+            cur.execute(
+                """
+                INSERT INTO empleados (id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad, partido, provincia, 
+                genero, nacionalidad, estado_civil)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id_empleado
+                """,
+                (
+                    id_empleado,
+                    nombre,
+                    apellido,
+                    tipo_identificacion,
+                    numero_identificacion,
+                    fecha_nacimiento,
+                    correo_electronico,
+                    telefono,
+                    calle,
+                    numero_calle,
+                    localidad,
+                    partido,
+                    provincia,
+                    genero,
+                    nacionalidad,
+                    estado_civil
                 )
-                id_empleado = cur.fetchone()[0]
-                db.conn.commit()
-                return Empleado.obtener_por_id(id_empleado)
+            )
+            conn.commit()
+            return Empleado.obtener_por_id(id_empleado)
         except Exception as e:
-            db.conn.rollback()
+            conn.rollback()
             raise ValueError(f"Error al crear empleado: {e}")
-
-    from datetime import date
 
     @staticmethod
     def crear_cuenta(usuario):
-        with db.conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, contrasena, esta_Activo, fecha_activacion, motivo)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id_usuario
-                """,
-                (2, 2, usuario.nombre_usuario, usuario.contrasena, True, date.today(), "")
-            )
-            id_usuario = cur.fetchone()[0]
-            db.conn.commit()
-            return {"mensaje": "Usuario registrado correctamente", "id_usuario": id_usuario}
+        conn, cur = db.get_conn_cursor()
+        cur.execute(
+            """
+            INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, contrasena, esta_Activo, fecha_activacion, motivo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id_usuario
+            """,
+            (2, 2, usuario.nombre_usuario, usuario.contrasena, True, date.today(), "")
+        )
+        id_usuario = cur.fetchone()[0]
+        conn.commit()
+        return {"mensaje": "Usuario registrado correctamente", "id_usuario": id_usuario}
 
     @staticmethod
     def obtener_por_id(id_empleado):
-        """Obtiene un empleado por su ID"""
-        with db.conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
-                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
-                    localidad, partido, provincia, genero, nacionalidad, estado_civil
-                FROM empleados
-                WHERE id_empleado = %s
-                """,
-                (str(id_empleado),)
-            )
-            result = cur.fetchone()
-            if result:
-                return Empleado(
-                    id_empleado=result[0],
-                    nombre=result[1],
-                    apellido=result[2],
-                    tipo_identificacion=result[3],
-                    numero_identificacion=result[4],
-                    fecha_nacimiento=result[5],
-                    correo_electronico=result[6],
-                    telefono=result[7],
-                    calle=result[8],
-                    numero_calle=result[9],
-                    localidad=result[10],
-                    partido=result[11],
-                    provincia=result[12],
-                    genero=result[13],
-                    nacionalidad=result[14],
-                    estado_civil=result[15]
-                )
-            return None  # En caso de no encontrar
+        conn, cur = db.get_conn_cursor()
+        cur.execute(
+            """
+            SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                   fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
+                   localidad, partido, provincia, genero, nacionalidad, estado_civil
+            FROM empleados
+            WHERE id_empleado = %s
+            """,
+            (str(id_empleado),)
+        )
+        result = cur.fetchone()
+        if result:
+            return Empleado(*result)
+        return None
 
     @staticmethod
     def obtener_por_numero_identificacion(numero_identificacion):
-        """Obtiene un empleado por su número de identificación"""
-        with db.conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
-                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
-                    localidad, partido, provincia, genero, nacionalidad, estado_civil
-                FROM empleados
-                WHERE numero_identificacion = %s
-                """,
-                (numero_identificacion,)
-            )
-            result = cur.fetchone()
-            if result:
-                return Empleado(
-                    id_empleado=result[0],
-                    nombre=result[1],
-                    apellido=result[2],
-                    tipo_identificacion=result[3],
-                    numero_identificacion=result[4],
-                    fecha_nacimiento=result[5],
-                    correo_electronico=result[6],
-                    telefono=result[7],
-                    calle=result[8],
-                    numero_calle=result[9],
-                    localidad=result[10],
-                    partido=result[11],
-                    provincia=result[12],
-                    genero=result[13],
-                    nacionalidad=result[14],
-                    estado_civil=result[15]
-                )
-            return None
+        conn, cur = db.get_conn_cursor()
+        cur.execute(
+            """
+            SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                   fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
+                   localidad, partido, provincia, genero, nacionalidad, estado_civil
+            FROM empleados
+            WHERE numero_identificacion = %s
+            """,
+            (numero_identificacion,)
+        )
+        result = cur.fetchone()
+        if result:
+            return Empleado(*result)
+        return None
+
 
 
 class RegistroHorario:
