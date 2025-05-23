@@ -91,21 +91,10 @@ def crear_empleado(empleado: Empleado):
     try:
         empleado = AdminCRUD.crear_empleado(empleado)
         return {
-            "nombre": empleado.nombre,
-            "apellido": empleado.apellido,
-            "tipo_identificacion": empleado.tipo_identificacion,
-            "numero_identificacion": empleado.numero_identificacion,
-            "fecha_nacimiento": empleado.fecha_nacimiento,
-            "correo_electronico": empleado.correo_electronico,
-            "telefono": empleado.telefono,
-            "calle": empleado.calle,
-            "numero_calle": empleado.numero_calle,
-            "localidad": empleado.localidad,
-            "partido": empleado.partido,
-            "provincia": empleado.provincia,
-            "genero": empleado.genero,
-            "pais_nacimiento": empleado.pais_nacimiento,
-            "estado_civil": empleado.estado_civil
+            "nombre": empleado["nombre"],
+            "apellido": empleado["apellido"],
+            "tipo_identificacion": empleado["numero_identificacion"],
+            "numero_identificacion": empleado["numero_identificacion"]
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -220,7 +209,7 @@ def registrar_usuario(usuario: Usuario):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-'''
+
 @app.websocket("/ws")
 async def reconocimiento(websocket: WebSocket):
     await websocket.accept()
@@ -247,5 +236,3 @@ async def reconocimiento(websocket: WebSocket):
             print("Error en la comunicación WebSocket:", e)
             break
 
-
-'''

@@ -43,4 +43,4 @@ class Database:
 
 
 # Instancia global
-db = Database()
+db = Database() 

@@ -1,4 +1,4 @@
-'''
+
 import numpy as np
 
 from crud.database import db
@@ -63,4 +63,3 @@ def identificar_persona(vector_actual):
 
     return None, None  # 🚫 No se encontró coincidencia
 
-'''

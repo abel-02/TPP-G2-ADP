@@ -1,4 +1,4 @@
-'''
+
 import psycopg2
 
 from crud.database import db
@@ -11,6 +11,8 @@ import face_recognition
 from PIL import Image
 from io import BytesIO
 from datetime import datetime
+
+fichajes = {}
 
 
 def procesar_imagen(data):
@@ -119,4 +121,3 @@ def obtener_vector(id_empleado):
         cur.close()
         conn.close()
 
-'''
