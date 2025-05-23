@@ -2,7 +2,7 @@ import os
 
 #import cv2
 #import face_recognition
-import numpy as np
+#import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket
 from typing import Optional
 from datetime import date, time
@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 
-from reconocimiento.serverReconocimiento import procesar_imagen, registrar_dato_biometrico_facial, detectar_persona
+#from reconocimiento.serverReconocimiento import procesar_imagen, registrar_dato_biometrico_facial, detectar_persona
 
 '''
 # Dato biometrico, lo voy a usar para probar el endpoint regitrar horario
@@ -210,7 +210,7 @@ def registrar_usuario(usuario: Usuario):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
+'''
 @app.websocket("/ws")
 async def reconocimiento(websocket: WebSocket):
     await websocket.accept()
@@ -246,4 +246,4 @@ async def reconocimiento(websocket: WebSocket):
         except Exception as e:
             print(f"❌ Error en la comunicación WebSocket: {e}")
             break
-
+'''
