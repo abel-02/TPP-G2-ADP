@@ -87,28 +87,18 @@ app.add_middleware(
 )
 
 @app.post("/empleados/")
-def crear_empleado(empleado: Empleado):
+def crear_empleado(nuevoEmpleado: Empleado):
     try:
-        empleado = AdminCRUD.crear_empleado(empleado)
+        empleado = AdminCRUD.crear_empleado(nuevoEmpleado)
         return {
-            "nombre": empleado.nombre,
-            "apellido": empleado.apellido,
-            "tipo_identificacion": empleado.tipo_identificacion,
-            "numero_identificacion": empleado.numero_identificacion,
-            "fecha_nacimiento": empleado.fecha_nacimiento,
-            "correo_electronico": empleado.correo_electronico,
-            "telefono": empleado.telefono,
-            "calle": empleado.calle,
-            "numero_calle": empleado.numero_calle,
-            "localidad": empleado.localidad,
-            "partido": empleado.partido,
-            "provincia": empleado.provincia,
-            "genero": empleado.genero,
-            "pais_nacimiento": empleado.pais_nacimiento,
-            "estado_civil": empleado.estado_civil
+            "nombre": empleado["nombre"],
+            "apellido": empleado["apellido"],
+            "tipo_identificacion": empleado["numero_identificacion"],
+            "numero_identificacion": empleado["numero_identificacion"]
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.get("/empleados/{numero_identificacion}")
 def obtener_empleado(numero_identificacion: str):
@@ -220,11 +210,11 @@ def registrar_usuario(usuario: Usuario):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-'''
+
 @app.websocket("/ws")
 async def reconocimiento(websocket: WebSocket):
     await websocket.accept()
-    print("WebSocket abierto, esperando imágenes...")
+    print("✅ WebSocket abierto, esperando imágenes...")
 
     while True:
         try:
@@ -232,6 +222,16 @@ async def reconocimiento(websocket: WebSocket):
 
             id_empleado = data.get("id_empleado")
 
+            # ✅ Validar que `id_empleado` no sea `None` y convertirlo a número
+            if id_empleado is None:
+                await websocket.send_text("❌ Error: ID del empleado es `null`.")
+                continue
+
+            try:
+                id_empleado = int(id_empleado)  # ✅ Convertir `str` a `int`
+            except ValueError:
+                await websocket.send_text(f"❌ Error: ID del empleado debe ser un número, pero se recibió '{id_empleado}'.")
+                continue
 
             registrar = data.get("registrar", False)
             vector_actual, error = procesar_imagen(data)
@@ -244,8 +244,6 @@ async def reconocimiento(websocket: WebSocket):
             await websocket.send_text(resultado)
 
         except Exception as e:
-            print("Error en la comunicación WebSocket:", e)
+            print(f"❌ Error en la comunicación WebSocket: {e}")
             break
 
-
-'''
