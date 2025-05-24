@@ -1,8 +1,4 @@
-import os
 
-#import cv2
-#import face_recognition
-import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket
 from typing import Optional
 from datetime import date, time
