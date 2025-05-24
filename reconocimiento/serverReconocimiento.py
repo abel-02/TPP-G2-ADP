@@ -46,6 +46,7 @@ def procesar_imagen(data):
 
 def registrar_dato_biometrico_facial(id_empleado, vector):
     """Registra el vector biométrico asegurando que está correctamente en formato `float64`."""
+    id_empleado = int(id_empleado)
 
     try:
         conn, cur = db.get_conn_cursor()
