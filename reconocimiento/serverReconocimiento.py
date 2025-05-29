@@ -81,9 +81,9 @@ async def verificar_identidad(websocket, data):
     vector_actual = face_encodings[0]
     vector_actual = vector_actual.astype(np.float64)  # 👈 Asegura tipo correcto
 
-    nombre_detectado, distancia = identificar_persona(vector_actual)
+    id_empleado, distancia = identificar_persona(vector_actual)
 
-    if not nombre_detectado:
+    if not id_empleado:
         await websocket.send_text("🚫 Persona no reconocida")
         return
 
@@ -125,11 +125,14 @@ async def verificar_identidad(websocket, data):
             vector_str = ",".join(map(str, vector_actual))
 
             try:
-                registro = RegistroHorario.registrar_asistencia(int(nombre_detectado), vector_str, fecha_hora)
-                await websocket.send_text(
-                    f"✅ {registro.tipo} registrada para {registro.id_empleado} a las {registro.hora.strftime('%H:%M:%S')} ({registro.estado_asistencia})")
+                registro = RegistroHorario.registrar_asistencia(int(id_empleado), vector_str, fecha_hora)
+
+                print(f"Tipo: {registro.tipo}, ID Empleado: {registro.id_empleado}, Hora: {registro.hora}, Fecha: {registro.fecha}")
+
+                await websocket.send_text(f"✅ Se registró la {registro.tipo} del empleado con ID {id_empleado} a las {registro.hora.strftime('%H:%M')} el {registro.fecha.strftime('%Y-%m-%d')}")
                 print(f"✅ Fichaje registrado en DB para {registro.id_empleado}")
                 return
+
             except ValueError as e:
                 await websocket.send_text(f"❌ Error al registrar asistencia: {e}")
                 return

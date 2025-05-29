@@ -383,12 +383,12 @@ class RegistroHorario:
                         turno_asistencia,
                         vector_capturado
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id_asistencia_biometrica, id_empleado, id_puesto, tipo, fecha, hora,
-                              estado_asistencia, turno_asistencia, vector_capturado
+                    RETURNING id_empleado, id_puesto, tipo, fecha, hora,
+                              estado_asistencia, turno_asistencia, vector_capturado, id_asistencia_biometrica 
                     """,
                     (
                         id_empleado,
-                        id_puesto,  # <- asegurate de tenerlo extraído antes
+                        id_puesto,
                         tipo,
                         fecha_actual,
                         hora_actual,
@@ -428,7 +428,6 @@ class RegistroHorario:
                            estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
                     FROM asistencia_biometrica
                     WHERE id_empleado = %s
-                    ORDER BY fecha DESC, hora DESC
                 """
 
                 params = [id_empleado]
