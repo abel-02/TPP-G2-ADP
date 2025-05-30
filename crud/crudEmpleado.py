@@ -1,16 +1,17 @@
 import uuid
 from datetime import datetime, timedelta, date, time
-from .database import db
-import numpy as np
+from .database import db, Database
 
-
+db = Database()  # O como se llame tu clase
+db._initialize_pool()
 
 class Empleado:
     def __init__(self, id_empleado=None, nombre=None, apellido=None, tipo_identificacion=None,
                  numero_identificacion=None, fecha_nacimiento=None, correo_electronico=None,
                  telefono=None, calle=None, numero_calle=None, localidad=None, partido=None, provincia=None,
-                 genero=None, nacionalidad=None, estado_civil=None):
+                 genero=None, pais_nacimiento=None, estado_civil=None):
 
+        # Validar provincia
         provincias_validas = ['Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba',
                               'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa',
                               'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro',
@@ -20,15 +21,18 @@ class Empleado:
         if provincia and provincia not in provincias_validas:
             raise ValueError(f"Provincia inválida. Opciones válidas: {provincias_validas}")
 
+        # Validar nacionalidad
         nacionalidades_validas = ['Argentina', 'Brasil', 'Chile', 'Uruguay', 'Paraguay',
                                   'Bolivia', 'Perú', 'Ecuador', 'Colombia', 'Venezuela', 'México']
-        if nacionalidad and nacionalidad not in nacionalidades_validas:
+        if pais_nacimiento and pais_nacimiento not in nacionalidades_validas:
             raise ValueError(f"Nacionalidad inválida. Opciones válidas: {nacionalidades_validas}")
 
+        # Validar tipo_identificacion
         tipos_id_validos = ['DNI', 'Pasaporte', 'Cédula']
         if tipo_identificacion and tipo_identificacion not in tipos_id_validos:
             raise ValueError(f"Tipo de identificación inválido. Opciones válidas: {tipos_id_validos}")
 
+        # Validar género
         generos_validos = ['Masculino', 'Femenino', 'No binario', 'Prefiere no especificar', 'Otro']
         if genero and genero not in generos_validos:
             raise ValueError(f"Género inválido. Opciones válidas: {generos_validos}")
@@ -47,101 +51,232 @@ class Empleado:
         self.partido = partido
         self.provincia = provincia
         self.genero = genero
-        self.nacionalidad = nacionalidad
+        self.pais_nacimiento = pais_nacimiento
         self.estado_civil = estado_civil
 
     @staticmethod
-    def crear(nombre, apellido, tipo_identificacion, numero_identificacion,
-              fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad,
-              partido, provincia, genero, nacionalidad, estado_civil):
+    def crear(id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion,
+            fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad,
+            partido, provincia, genero, pais_nacimiento, estado_civil):
         """Crea un nuevo empleado"""
+        conn = None
         try:
-            conn, cur = db.get_conn_cursor()
-            id_empleado = str(uuid.uuid4())
-            cur.execute(
-                """
-                INSERT INTO empleados (id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
-                fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad, partido, provincia, 
-                genero, nacionalidad, estado_civil)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id_empleado
-                """,
-                (
-                    id_empleado,
-                    nombre,
-                    apellido,
-                    tipo_identificacion,
-                    numero_identificacion,
-                    fecha_nacimiento,
-                    correo_electronico,
-                    telefono,
-                    calle,
-                    numero_calle,
-                    localidad,
-                    partido,
-                    provincia,
-                    genero,
-                    nacionalidad,
-                    estado_civil
+            with db.conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO empleado (id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, localidad, partido, provincia, 
+                    genero, pais_nacimiento, estado_civil)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id_empleado
+                    """,
+                    (
+                        str(uuid.uuid4()),  # Generamos nuevo UUID
+                        nombre,
+                        apellido,
+                        tipo_identificacion,
+                        numero_identificacion,
+                        fecha_nacimiento,
+                        correo_electronico,
+                        telefono,
+                        calle,
+                        numero_calle,
+                        localidad,
+                        partido,
+                        provincia,
+                        genero,
+                        pais_nacimiento,
+                        estado_civil
+                    )
                 )
-            )
-            conn.commit()
-            return Empleado.obtener_por_id(id_empleado)
+                id_empleado = cur.fetchone()[0]
+                db.conn.commit()
+                return Empleado.obtener_por_id(id_empleado)
         except Exception as e:
-            conn.rollback()
+            db.conn.rollback()
             raise ValueError(f"Error al crear empleado: {e}")
 
     @staticmethod
-    def crear_cuenta(usuario):
-        conn, cur = db.get_conn_cursor()
-        cur.execute(
-            """
-            INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, contrasena, esta_Activo, fecha_activacion, motivo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id_usuario
-            """,
-            (2, 2, usuario.nombre_usuario, usuario.contrasena, True, date.today(), "")
-        )
-        id_usuario = cur.fetchone()[0]
-        conn.commit()
-        return {"mensaje": "Usuario registrado correctamente", "id_usuario": id_usuario}
+    def obtener_por_id(id_empleado):
+        """Obtiene un empleado por su ID"""
+        with db.conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
+                    localidad, partido, provincia, genero, pais_nacimiento, estado_civil
+                FROM empleado
+                WHERE id_empleado = %s
+                """,
+                (str(id_empleado),)
+            )
+            result = cur.fetchone()
+            if result:
+                return Empleado(
+                    id_empleado=result[0],
+                    nombre=result[1],
+                    apellido=result[2],
+                    tipo_identificacion=result[3],
+                    numero_identificacion=result[4],
+                    fecha_nacimiento=result[5],
+                    correo_electronico=result[6],
+                    telefono=result[7],
+                    calle=result[8],
+                    numero_calle=result[9],
+                    localidad=result[10],
+                    partido=result[11],
+                    provincia=result[12],
+                    genero=result[13],
+                    pais_nacimiento=result[14],
+                    estado_civil=result[15]
+                )
+            return None  # En caso de no encontrar
 
     @staticmethod
-    def obtener_por_id(id_empleado):
-        conn, cur = db.get_conn_cursor()
-        cur.execute(
-            """
-            SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
-                   fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
-                   localidad, partido, provincia, genero, nacionalidad, estado_civil
-            FROM empleados
-            WHERE id_empleado = %s
-            """,
-            (str(id_empleado),)
-        )
-        result = cur.fetchone()
-        if result:
-            return Empleado(*result)
-        return None
+    def borrar_por_id(id_empleado):
+        """Elimina un empleado por su ID"""
+        with db.conn.cursor() as cur:
+            try:
+                # Primero verificamos si el empleado existe
+                cur.execute(
+                    "SELECT id_empleado FROM empleado WHERE id_empleado = %s",
+                    (str(id_empleado),)
+                )
+                if not cur.fetchone():
+                    return False  # No existe el empleado
+
+                # Si existe, procedemos a borrar
+                cur.execute(
+                    "DELETE FROM empleado WHERE id_empleado = %s",
+                    (str(id_empleado),)
+                )
+                db.conn.commit()
+                return True  # Borrado exitoso
+
+            except Exception as e:
+                db.conn.rollback()
+                raise ValueError(f"Error al borrar empleado: {str(e)}")
 
     @staticmethod
     def obtener_por_numero_identificacion(numero_identificacion):
-        conn, cur = db.get_conn_cursor()
-        cur.execute(
-            """
-            SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
-                   fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
-                   localidad, partido, provincia, genero, nacionalidad, estado_civil
-            FROM empleados
-            WHERE numero_identificacion = %s
-            """,
-            (numero_identificacion,)
-        )
-        result = cur.fetchone()
-        if result:
-            return Empleado(*result)
-        return None
+        """Obtiene un empleado por su número de identificación"""
+        with db.conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id_empleado, nombre, apellido, tipo_identificacion, numero_identificacion, 
+                    fecha_nacimiento, correo_electronico, telefono, calle, numero_calle, 
+                    localidad, partido, provincia, genero, pais_nacimiento, estado_civil
+                FROM empleado
+                WHERE numero_identificacion = %s
+                """,
+                (numero_identificacion,)
+            )
+            result = cur.fetchone()
+            if result:
+                return Empleado(
+                    id_empleado=result[0],
+                    nombre=result[1],
+                    apellido=result[2],
+                    tipo_identificacion=result[3],
+                    numero_identificacion=result[4],
+                    fecha_nacimiento=result[5],
+                    correo_electronico=result[6],
+                    telefono=result[7],
+                    calle=result[8],
+                    numero_calle=result[9],
+                    localidad=result[10],
+                    partido=result[11],
+                    provincia=result[12],
+                    genero=result[13],
+                    pais_nacimiento=result[14],
+                    estado_civil=result[15]
+                )
+            return None
 
+    @staticmethod
+    def actualizar_datos_personales(id_empleado: int,
+                                    telefono: str = None,
+                                    correo_electronico: str = None,
+                                    calle: str = None,
+                                    numero_calle: str = None,
+                                    localidad: str = None,
+                                    partido: str = None,
+                                    provincia: str = None):
+        """
+        Actualiza los datos personales de un empleado. Solo actualiza los campos recibidos.
+
+        Returns:
+            Objeto Empleado actualizado o lanza ValueError
+        """
+        try:
+            conn = db.get_connection()
+            cur = conn.cursor()
+
+            # Validar correo electrónico único si se quiere actualizar
+            if correo_electronico:
+                cur.execute("""
+                    SELECT 1 FROM empleado 
+                    WHERE correo_electronico = %s AND id_empleado != %s
+                """, (correo_electronico, id_empleado))
+                if cur.fetchone():
+                    raise ValueError("El correo electrónico ya está en uso por otro empleado.")
+
+            # Validar provincia si se quiere actualizar
+            if provincia:
+                provincias_validas = [
+                    'Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba',
+                    'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa',
+                    'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro',
+                    'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe',
+                    'Santiago del Estero', 'Tierra del Fuego', 'Tucumán',
+                    'Ciudad Autónoma de Buenos Aires'
+                ]
+                if provincia not in provincias_validas:
+                    raise ValueError("Provincia inválida.")
+
+            # Armar consulta dinámica
+            campos = []
+            valores = []
+
+            if telefono: campos.append("telefono = %s"); valores.append(telefono)
+            if correo_electronico: campos.append("correo_electronico = %s"); valores.append(correo_electronico)
+            if calle: campos.append("calle = %s"); valores.append(calle)
+            if numero_calle: campos.append("numero_calle = %s"); valores.append(numero_calle)
+            if localidad: campos.append("localidad = %s"); valores.append(localidad)
+            if partido: campos.append("partido = %s"); valores.append(partido)
+            if provincia: campos.append("provincia = %s"); valores.append(provincia)
+
+            if not campos:
+                raise ValueError("No se proporcionaron datos para actualizar.")
+
+            # Ejecutar update
+            query = f"""
+                UPDATE empleado
+                SET {', '.join(campos)}
+                WHERE id_empleado = %s
+                RETURNING id_empleado
+            """
+            valores.append(id_empleado)
+
+            cur.execute(query, valores)
+            if cur.rowcount == 0:
+                raise ValueError("No se encontró el empleado con ese ID.")
+
+            conn.commit()
+            return Empleado.obtener_por_id(id_empleado)
+
+        except Exception as e:
+            try:
+                conn.rollback()
+            except:
+                pass
+            raise ValueError(f"Error al actualizar datos: {str(e)}")
+
+        finally:
+            try:
+                db.return_connection(conn)
+            except:
+                pass
 
 
 class RegistroHorario:
@@ -158,88 +293,115 @@ class RegistroHorario:
         self.vector_capturado = vector_capturado
 
     @staticmethod
-    def registrar_asistencia(id_empleado: int, vector_biometrico: np.ndarray):
+    def registrar_asistencia(id_empleado: int, vector_biometrico: str):
         """
-        Registra una nueva asistencia biométrica realizando validaciones y clasificación del registro.
+        Registra una nueva asistencia biométrica con toda la lógica de validación
 
         Args:
-            id_empleado (int): ID del empleado.
-            vector_biometrico (np.ndarray): Vector biométrico capturado (formato numpy array).
+            id_empleado (int): ID del empleado
+            vector_biometrico (str): Vector biométrico capturado
 
         Returns:
-            RegistroHorario: Registro creado exitosamente.
+            RegistroHorario: Instancia del nuevo registro
 
         Raises:
-            ValueError: Si hay un error en la operación o en los datos proporcionados.
+            ValueError: Si hay error en los datos o en la operación
         """
         try:
             with db.conn.cursor() as cur:
-                # Obtener datos laborales
-                cur.execute("""
-                    SELECT puesto, turno, hora_inicio_turno, hora_fin_turno
-                    FROM informacion_laboral
-                    WHERE id_empleado = %s
-                """, (id_empleado,))
-                datos = cur.fetchone()
+                # 1. Recuperar información laboral del empleado
+                cur.execute(
+                    "SELECT puesto, turno, hora_inicio_turno, hora_fin_turno "
+                    "FROM informacion_laboral WHERE id_empleado = %s",
+                    (id_empleado,)
+                )
+                resultado = cur.fetchone()
 
-                if not datos:
-                    raise ValueError("No se encontró información laboral del empleado.")
+                if not resultado:
+                    raise ValueError("No se encontró información laboral para el empleado")
 
-                puesto, turno, hora_inicio, hora_fin = datos
+                puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
 
-                # Determinar momento y estado
-                ahora = datetime.now()
-                fecha = ahora.date()
-                hora = ahora.time()
+                # 2. Determinar tipo y estado de la asistencia
+                now = datetime.now()
+                fecha_actual = now.date()
+                hora_actual = now.time()
 
-                dt_actual = datetime.combine(fecha, hora)
-                dt_entrada = datetime.combine(fecha, hora_inicio)
-                dt_salida = datetime.combine(fecha, hora_fin)
+                # Convertir a datetime para comparaciones
+                entrada_dt = datetime.combine(fecha_actual, hora_inicio_turno)
+                salida_dt = datetime.combine(fecha_actual, hora_fin_turno)
+                actual_dt = datetime.combine(fecha_actual, hora_actual)
 
-                anticipacion = timedelta(minutes=60)
-                tolerancia = timedelta(minutes=5)
-                retraso = timedelta(minutes=15)
-                margen_salida = timedelta(minutes=30)
+                # Tolerancias
+                tiempo_permitido_entrada_temprana = timedelta(minutes=60)
+                tolerancia_a_tiempo = timedelta(minutes=5)
+                retraso_minimo = timedelta(minutes=15)
 
-                if dt_entrada - anticipacion < dt_actual < dt_entrada:
-                    tipo, estado = "Entrada", "Temprana"
-                elif dt_entrada <= dt_actual <= dt_entrada + tolerancia:
-                    tipo, estado = "Entrada", "A tiempo"
-                elif dt_actual <= dt_entrada + retraso:
-                    tipo, estado = "Entrada", "Retraso mínimo"
-                elif dt_actual < dt_salida - timedelta(hours=3):
-                    tipo, estado = "Entrada", "Tarde"
-                elif dt_salida - margen_salida <= dt_actual <= dt_salida + margen_salida:
+                # Lógica de determinación
+                if entrada_dt - tiempo_permitido_entrada_temprana < actual_dt < entrada_dt:
+                    tipo = "Entrada"
+                    estado_asistencia = "Temprana"
+                elif entrada_dt <= actual_dt <= entrada_dt + tolerancia_a_tiempo:
+                    tipo = "Entrada"
+                    estado_asistencia = "A tiempo"
+                elif entrada_dt + tolerancia_a_tiempo < actual_dt <= entrada_dt + retraso_minimo:
+                    tipo = "Entrada"
+                    estado_asistencia = "Retraso minimo"
+                elif entrada_dt + retraso_minimo < actual_dt < salida_dt - timedelta(hours=3):
+                    tipo = "Entrada"
+                    estado_asistencia = "Tarde"
+                elif salida_dt - timedelta(minutes=30) <= actual_dt <= salida_dt + timedelta(minutes=30):
                     tipo = "Salida"
-                    if dt_actual < dt_salida:
-                        estado = "Temprana"
-                    elif dt_actual > dt_salida:
-                        estado = "Tarde"
+                    if actual_dt < salida_dt:
+                        estado_asistencia = "Temprana"
+                    elif actual_dt > salida_dt:
+                        estado_asistencia = "Tarde"
                     else:
-                        estado = "A tiempo"
+                        estado_asistencia = "A tiempo"
                 else:
-                    tipo = "Entrada" if dt_actual < dt_salida else "Salida"
-                    estado = "Fuera de rango"
+                    if actual_dt < salida_dt:
+                        tipo = "Entrada"
+                        estado_asistencia = "Fuera de rango"
+                    else:
+                        tipo = "Salida"
+                        estado_asistencia = "Fuera de rango"
 
-                # Insertar asistencia
-                cur.execute("""
+                # 3. Insertar en la base de datos
+                cur.execute(
+                    """
                     INSERT INTO asistencia_biometrica (
-                        id_empleado, tipo, fecha, hora, estado_asistencia,
-                        turno_asistencia, puesto_del_asistente, vector_capturado
+                        id_empleado,
+                        tipo,
+                        fecha,
+                        hora,
+                        estado_asistencia,
+                        turno_asistencia,
+                        puesto_del_asistente,
+                        vector_capturado
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
                               estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
-                """, (
-                    id_empleado, tipo, fecha, hora, estado,
-                    turno, puesto, vector_biometrico.tobytes()
-                ))
+                    """,
+                    (
+                        id_empleado,
+                        tipo,
+                        fecha_actual,
+                        hora_actual,
+                        estado_asistencia,
+                        turno,
+                        puesto,
+                        vector_biometrico
+                    )
+                )
 
+                resultado = cur.fetchone()
                 db.conn.commit()
-                return RegistroHorario(*cur.fetchone())
+
+                return RegistroHorario(*resultado)
 
         except Exception as e:
             db.conn.rollback()
-            raise ValueError(f"Error al registrar asistencia: {e}")
+            raise ValueError(f"Error al registrar asistencia biométrica: {e}")
 
     @staticmethod
     def registrar_asistencia_manual(
@@ -253,120 +415,160 @@ class RegistroHorario:
             vector_biometrico: str = "MANUAL"
     ):
         """
-        Registra una asistencia manual (usada por personal administrativo).
+        Registra una asistencia de forma manual (para uso administrativo)
 
         Args:
-            id_empleado (int): ID del empleado.
-            tipo (str): "Entrada" o "Salida".
-            fecha (date): Fecha del registro.
-            hora (time): Hora del registro.
-            estado_asistencia (str, optional): Estado del registro (calculado si no se provee).
-            turno_asistencia (str, optional): Turno del empleado.
-            puesto_del_asistente (str, optional): Puesto del empleado.
-            vector_biometrico (str, optional): Vector capturado (default: "MANUAL").
+            id_empleado: ID del empleado
+            tipo: "Entrada" o "Salida"
+            fecha: Fecha del registro
+            hora: Hora del registro
+            estado_asistencia: Opcional - Estado de la asistencia
+            turno_asistencia: Opcional - Turno del empleado
+            puesto_del_asistente: Opcional - Puesto del empleado
+            vector_biometrico: Opcional - Vector biométrico (default "MANUAL")
 
         Returns:
-            RegistroHorario: Registro creado exitosamente.
+            RegistroHorario: Instancia del nuevo registro
 
         Raises:
-            ValueError: Si los datos son inválidos o falla la operación.
+            ValueError: Si hay error en los datos o en la operación
         """
         try:
             with db.conn.cursor() as cur:
+                # 1. Obtener información laboral si no se proporciona
                 if not all([estado_asistencia, turno_asistencia, puesto_del_asistente]):
-                    cur.execute("""
-                        SELECT puesto, turno, hora_inicio_turno, hora_fin_turno
-                        FROM informacion_laboral
-                        WHERE id_empleado = %s
-                    """, (id_empleado,))
-                    datos = cur.fetchone()
+                    cur.execute(
+                        "SELECT puesto, turno, hora_inicio_turno, hora_fin_turno "
+                        "FROM informacion_laboral WHERE id_empleado = %s",
+                        (id_empleado,)
+                    )
+                    resultado = cur.fetchone()
 
-                    if not datos:
-                        raise ValueError("No se encontró información laboral del empleado.")
+                    if not resultado:
+                        raise ValueError("No se encontró información laboral para el empleado")
 
-                    puesto, turno, hora_inicio, hora_fin = datos
-                    turno_asistencia = turno_asistencia or turno
+                    puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
+
+                    # Usar valores de la DB si no se proporcionaron
                     puesto_del_asistente = puesto_del_asistente or puesto
+                    turno_asistencia = turno_asistencia or turno
 
+                    # Calcular estado si no se proporcionó
                     if not estado_asistencia:
-                        dt_registro = datetime.combine(fecha, hora)
-                        dt_entrada = datetime.combine(fecha, hora_inicio)
-                        dt_salida = datetime.combine(fecha, hora_fin)
+                        entrada_dt = datetime.combine(fecha, hora_inicio_turno)
+                        salida_dt = datetime.combine(fecha, hora_fin_turno)
+                        registro_dt = datetime.combine(fecha, hora)
 
+                        # Lógica de determinación de estado (similar al método automático)
                         if tipo == "Entrada":
-                            if dt_registro < dt_entrada - timedelta(minutes=60):
+                            if registro_dt < entrada_dt - timedelta(minutes=60):
                                 estado_asistencia = "Fuera de rango"
-                            elif dt_registro < dt_entrada:
+                            elif registro_dt < entrada_dt:
                                 estado_asistencia = "Temprana"
-                            elif dt_registro <= dt_entrada + timedelta(minutes=5):
+                            elif registro_dt <= entrada_dt + timedelta(minutes=5):
                                 estado_asistencia = "A tiempo"
-                            elif dt_registro <= dt_entrada + timedelta(minutes=15):
-                                estado_asistencia = "Retraso mínimo"
+                            elif registro_dt <= entrada_dt + timedelta(minutes=15):
+                                estado_asistencia = "Retraso minimo"
                             else:
                                 estado_asistencia = "Tarde"
                         elif tipo == "Salida":
-                            if dt_registro < dt_salida - timedelta(minutes=30):
+                            if registro_dt < salida_dt - timedelta(minutes=30):
                                 estado_asistencia = "Fuera de rango"
-                            elif dt_registro < dt_salida:
+                            elif registro_dt < salida_dt:
                                 estado_asistencia = "Temprana"
-                            elif dt_registro > dt_salida + timedelta(minutes=30):
+                            elif registro_dt > salida_dt + timedelta(minutes=30):
                                 estado_asistencia = "Fuera de rango"
                             else:
-                                estado_asistencia = "A tiempo" if dt_registro == dt_salida else "Tarde"
+                                estado_asistencia = "A tiempo" if registro_dt == salida_dt else "Tarde"
 
+                # Validar tipo
                 if tipo not in ["Entrada", "Salida"]:
-                    raise ValueError("El tipo debe ser 'Entrada' o 'Salida'.")
+                    raise ValueError("El tipo debe ser 'Entrada' o 'Salida'")
 
-                cur.execute("""
+                # 2. Insertar en la base de datos
+                cur.execute(
+                    """
                     INSERT INTO asistencia_biometrica (
-                        id_empleado, tipo, fecha, hora, estado_asistencia,
-                        turno_asistencia, puesto_del_asistente, vector_capturado
+                        id_empleado,
+                        tipo,
+                        fecha,
+                        hora,
+                        estado_asistencia,
+                        turno_asistencia,
+                        puesto_del_asistente,
+                        vector_capturado
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
                               estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
-                """, (
-                    id_empleado, tipo, fecha, hora, estado_asistencia,
-                    turno_asistencia, puesto_del_asistente, vector_biometrico
-                ))
+                    """,
+                    (
+                        id_empleado,
+                        tipo,
+                        fecha,
+                        hora,
+                        estado_asistencia,
+                        turno_asistencia,
+                        puesto_del_asistente,
+                        vector_biometrico
+                    )
+                )
 
+                resultado = cur.fetchone()
                 db.conn.commit()
-                return RegistroHorario(*cur.fetchone())
+
+                return RegistroHorario(*resultado)
 
         except Exception as e:
             db.conn.rollback()
             raise ValueError(f"Error al registrar asistencia manual: {e}")
 
     @staticmethod
-    def obtener_por_empleado(id_empleado: int) :
+    def obtener_por_empleado(id_empleado: int, limite: int = None):
         """
-        Obtiene todos los registros de asistencia biométrica de un empleado.
+        Obtiene los registros de asistencia de un empleado
 
         Args:
-            id_empleado (int): ID del empleado.
+            id_empleado (int): ID del empleado
+            limite (int): Cantidad máxima de registros a devolver
 
         Returns:
-            list[RegistroHorario]: Lista de registros de asistencia asociados al empleado.
-
-        Raises:
-            ValueError: Si ocurre un error al recuperar los datos.
+            List[RegistroHorario]: Lista de registros ordenados por fecha y hora descendente
         """
         try:
             with db.conn.cursor() as cur:
-                cur.execute("""
+                query = """
                     SELECT id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
                            estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
                     FROM asistencia_biometrica
                     WHERE id_empleado = %s
                     ORDER BY fecha DESC, hora DESC
-                """, (id_empleado,))
+                """
 
+                params = [id_empleado]
+
+                if limite:
+                    query += " LIMIT %s"
+                    params.append(limite)
+
+                cur.execute(query, params)
                 resultados = cur.fetchall()
-                return [RegistroHorario(*fila) for fila in resultados]
 
+                return [
+                    RegistroHorario(
+                        id_asistencia_biometrica=row[0],
+                        id_empleado=row[1],
+                        tipo=row[2],
+                        fecha=row[3],
+                        hora=row[4],
+                        estado_asistencia=row[5],
+                        turno_asistencia=row[6],
+                        puesto_del_asistente=row[7],
+                        vector_capturado=row[8]
+                    ) for row in resultados
+                ]
         except Exception as e:
-            raise ValueError(f"Error al obtener asistencias del empleado {id_empleado}: {e}")
+            raise ValueError(f"Error al obtener registros: {e}")
 
-# ESTE TODAVIA NO
     @staticmethod
     def obtener_ultimo_registro(id_empleado: int):
         """
@@ -381,125 +583,76 @@ class RegistroHorario:
                 f"el {self.fecha} a las {self.hora} ({self.estado_asistencia})>")
 
     @staticmethod
-    def obtener_registros_mensuales(empleado_id, año, mes):
-        """
-        Obtiene registros de jornada por mes
-        """
+    def calcular_horas_mensuales2(empleado_id, año, mes):
+        """Calcula la suma total de horas trabajadas en un mes"""
         inicio = datetime(año, mes, 1).date()
         fin = (inicio + timedelta(days=31)).replace(day=1)
 
-        conn, cur = db.get_conn_cursor()
         try:
+            conn = db.get_connection()
+            cur = conn.cursor()
             cur.execute(
                 """
-                SELECT id_registro_jornada, id_empleado, fecha, hora_entrada, hora_salida,
-                       estado_jornada, horas_trabajadas, observaciones
-                FROM registro_jornada
+                SELECT SUM(horas_normales_trabajadas) 
+                FROM registro_jornada 
                 WHERE id_empleado = %s 
-                  AND fecha >= %s 
-                  AND fecha < %s
-                ORDER BY fecha
-                """,
-                (empleado_id, inicio, fin)
-            )
-            return cur.fetchall()
-        except Exception as e:
-            raise ValueError(f"Error al obtener registros mensuales: {e}")
-        finally:
-            conn.close()
-
-    @staticmethod
-    def calcular_horas_mensuales(empleado_id, año, mes):
-        """
-        Calcula la suma total de horas trabajadas en un mes
-        """
-        inicio = datetime(año, mes, 1).date()
-        fin = (inicio + timedelta(days=31)).replace(day=1)
-
-        conn, cur = db.get_conn_cursor()
-        try:
-            cur.execute(
-                """
-                SELECT SUM(horas_trabajadas)
-                FROM registro_jornada
-                WHERE id_empleado = %s
-                  AND fecha >= %s
-                  AND fecha < %s
+                AND dia >= %s 
+                AND dia < %s
                 """,
                 (empleado_id, inicio, fin)
             )
             resultado = cur.fetchone()
-            return resultado[0] if resultado[0] else 0.0
-        except Exception as e:
-            raise ValueError(f"Error al calcular horas mensuales: {e}")
+            return resultado[0] if resultado[0] else 0.0  # Si no hay registros, devuelve 0.0
         finally:
-            conn.close()
+            if conn:
+                db.return_connection(conn)
 
     @staticmethod
-    def actualizar_datos_personales(
-            id_asistencia: int,
-            tipo: str = None,
-            fecha: date = None,
-            hora: time = None,
-            estado_asistencia: str = None,
-            turno_asistencia: str = None,
-            puesto_del_asistente: str = None
-    ):
-        """
-        Actualiza los datos personales de un registro de asistencia.
-
-        Args:
-            id_asistencia (int): ID del registro a modificar.
-            tipo (str, optional): "Entrada" o "Salida".
-            fecha (date, optional): Nueva fecha.
-            hora (time, optional): Nueva hora.
-            estado_asistencia (str, optional): Nuevo estado.
-            turno_asistencia (str, optional): Nuevo turno.
-            puesto_del_asistente (str, optional): Nuevo puesto.
-
-        Returns:
-            RegistroHorario: Registro actualizado.
-
-        Raises:
-            ValueError: Si no se proporciona ningún campo a actualizar o si ocurre un error.
-        """
+    def obtener_todos_los_registros(empleado_id):
+        """Obtiene todos los registros de jornada de un empleado"""
         try:
-            campos = {
-                "tipo": tipo,
-                "fecha": fecha,
-                "hora": hora,
-                "estado_asistencia": estado_asistencia,
-                "turno_asistencia": turno_asistencia,
-                "puesto_del_asistente": puesto_del_asistente
-            }
+            conn = db.get_connection()
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT id_registro_jornada, id_empleado, fecha,  dia, hora_entrada, hora_salida, estado_jornada, horas_normales_trabajadas, observaciones
+                FROM registro_jornada
+                WHERE id_empleado = %s
+                ORDER BY fecha
+                """,
+                (empleado_id,)
+            )
+            return cur.fetchall()  # Devuelve todos los registros del empleado
+        finally:
+            if conn:
+                db.return_connection(conn)
 
-            campos_actualizar = {k: v for k, v in campos.items() if v is not None}
 
-            if not campos_actualizar:
-                raise ValueError("Debe proporcionarse al menos un campo para actualizar.")
+    @staticmethod
+    def calcular_horas_mensuales(empleado_id, año, mes):
+        """Calcula la suma total de horas trabajadas en un mes"""
+        inicio = datetime(año, mes, 1).date()
+        fin = (inicio + timedelta(days=31)).replace(day=1)
 
-            set_clause = ", ".join([f"{campo} = %s" for campo in campos_actualizar])
-            valores = list(campos_actualizar.values())
+        try:
+            conn = db.get_connection()
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT SUM(horas_normales_trabajadas)
+                FROM registro_jornada
+                WHERE id_empleado = %s
+                AND fecha >= %s
+                AND fecha < %s
+                """,
+                (empleado_id, inicio, fin)
+            )
+            resultado = cur.fetchone()
+            return resultado[0] if resultado[0] else 0.0  # Si no hay registros, devuelve 0.0
+        finally:
+            if conn:
+                db.return_connection(conn)
 
-            with db.conn.cursor() as cur:
-                cur.execute(f"""
-                    UPDATE asistencia_biometrica
-                    SET {set_clause}
-                    WHERE id_asistencia_biometrica = %s
-                    RETURNING id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
-                              estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
-                """, (*valores, id_asistencia))
-
-                resultado = cur.fetchone()
-                if not resultado:
-                    raise ValueError(f"No se encontró un registro con ID {id_asistencia}.")
-
-                db.conn.commit()
-                return RegistroHorario(*resultado)
-
-        except Exception as e:
-            db.conn.rollback()
-            raise ValueError(f"Error al actualizar el registro: {e}")
 
 
 

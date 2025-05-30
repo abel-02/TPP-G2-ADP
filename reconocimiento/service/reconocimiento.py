@@ -1,52 +1,43 @@
-
 import numpy as np
+from reconocimiento.utils.utilsVectores import cargar_vectores, UMBRAL
 
-from crud.database import db
-from reconocimiento.utils.utilsVectores import  UMBRAL
+from reconocimiento.utils.utils_gestos import detectar_sonrisa, detectar_giro, detectar_cejas_levantadas
 
-import numpy as np
+UMBRAL_GESTO = 0.35  # 🔧 Ajusta según pruebas
 
+GESTOS_VALIDOS = {
+    "sonrisa": detectar_sonrisa,
+    "giro": detectar_giro,
+    "cejas": detectar_cejas_levantadas
+}
 
 def identificar_persona(vector_actual):
-    """
-    Identifica si el rostro pertenece a una persona registrada, comparando con los vectores almacenados en la base de datos.
-    """
+    """Compara el rostro detectado con los registrados para identificar a la persona."""
 
     if vector_actual is None or not isinstance(vector_actual, np.ndarray):
-        return None, None  # 🚫 Datos inválidos
+        print("❌ Error: Datos inválidos en identificación facial")
+        return None, None
 
-    try:
-        conn, cur = db.get_conn_cursor()
+    vector_actual = vector_actual.astype(np.float64)  # 👈 Asegura tipo correcto
 
-        # Obtener todos los vectores biométricos registrados
-        cur.execute("SELECT id_empleado, vector_biometrico FROM dato_biometrico_facial")
-        registros = cur.fetchall()
+    datos_vectores = cargar_vectores()
 
-        for id_empleado, vector_guardado in registros:
-            if vector_guardado is None:
-                continue  # 🚫 Ignorar empleados sin datos biométricos
-
-            # ✅ Convertir `BYTEA` a `bytes` si PostgreSQL lo devuelve como `str`
-            if isinstance(vector_guardado, str):
-                try:
-                    vector_guardado = bytes.fromhex(vector_guardado[2:])
-                except ValueError:
-                    continue  # 🚫 Ignorar datos inválidos sin imprimir error
-
-            # ✅ Convertir de `BYTEA` a NumPy correctamente
-            vector_db = np.frombuffer(vector_guardado, dtype=np.float64)
-
-            # Comparación de distancia
-            if np.linalg.norm(vector_actual - vector_db) < UMBRAL:
-                return id_empleado, None  # ✅ Persona reconocida
-
-    except Exception:
-        return None, None  # 🚫 Error en la identificación
-
-    finally:
-        cur.close()
-        conn.close()
+    for persona_id, vectores_guardados in datos_vectores.items():
+        for tipo, vector_guardado in vectores_guardados.items():
+            vector_guardado = vector_guardado.astype(np.float64)  # 👈 Asegura tipo correcto
+            print(f"🧪 Tipos: actual={vector_actual.dtype}, guardado={vector_guardado.dtype}")
+            distancia = np.linalg.norm(vector_actual - vector_guardado)
+            if distancia < UMBRAL:
+                return persona_id, distancia  # ✅ Persona reconocida
 
     return None, None  # 🚫 No se encontró coincidencia
 
 
+def identificar_gesto(image_np, gesto_requerido):
+    if gesto_requerido == "sonrisa":
+        return detectar_sonrisa(image_np)
+    elif gesto_requerido == "giro":
+        return detectar_giro(image_np)
+    elif gesto_requerido == "cejas":
+        return detectar_cejas_levantadas(image_np)
+    return False
