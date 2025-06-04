@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 import face_recognition
 import numpy as np
 import base64
@@ -18,9 +18,10 @@ fichajes = {}
 
 # eSTA ES LA VERSION QUE ANDABA
 
-async def registrar_empleado(websocket, data_inicial, id_empleado):
+async def registrar_empleado(websocket, data, id_empleado):
     """Registra un empleado pidiendo imágenes de a una, validando gesto por gesto."""
     gestos_requeridos = [("normal", None), ("sonrisa", "sonrisa"), ("giro", "giro")]
+    vectores_guardar = {}  # Diccionario para almacenar los vectores temporales
 
     for tipo, gesto in gestos_requeridos:
         primer_intento = True
@@ -48,16 +49,21 @@ async def registrar_empleado(websocket, data_inicial, id_empleado):
                         await websocket.send_text(f"🚫 El gesto '{gesto}' no fue detectado correctamente, intenta de nuevo")
                         continue  # 👈 volver a pedir imagen sin mandar alerta nueva
 
-                # ✅ Gesto validado: guardar vector
-                guardar_vector(id_empleado, tipo, vector_actual)
+                # ✅ Gesto validado: almacenar vector
+                vectores_guardar[tipo] = vector_actual
                 break  # 👉 pasar al siguiente gesto
 
             except Exception as e:
                 await websocket.send_text(f"⚠️ Error procesando imagen '{tipo}': {e}")
                 continue
-
-    await websocket.send_text(f"✅ Persona '{id_empleado}' registrada correctamente con gestos")
-    print(f"✅ Persona '{id_empleado}' registrada")
+    # Si todos los gestos fueron validados, guardar los vectores
+    if len(vectores_guardar) == len(gestos_requeridos):
+        for tipo, vector in vectores_guardar.items():
+            guardar_vector(id_empleado, tipo, vector)
+        await websocket.send_text(f"✅ Persona '{id_empleado}' registrada correctamente con gestos")
+        print(f"✅ Persona '{id_empleado}' registrada")
+    else:
+        await websocket.send_text(f"❌ No se completaron todos los gestos requeridos, registro cancelado")
 
 
 async def verificar_identidad(websocket, data):

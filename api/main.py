@@ -1,56 +1,20 @@
-import os
 
-from pydantic import field_validator
-#import cv2
-#import face_recognition
-import numpy as np
-
-from fastapi import FastAPI, HTTPException, Depends, WebSocket
-from crud import crudEmpleado, crudAdmintrador
-import uuid
+from fastapi import FastAPI, HTTPException, Depends, WebSocket, status
 from typing import Optional
-from datetime import datetime, timedelta, date, time
+from datetime import datetime, date, time
 
 from crud.crudAdmintrador import AdminCRUD
 from crud.crudEmpleado import RegistroHorario
 from crud.crudEmpleado import Empleado
 from crud.crudNomina import NominaCRUD
 from pydantic import BaseModel, Field
-from typing import List
 from typing import Tuple, List
 
 from reconocimiento.serverReconocimiento import registrar_empleado, verificar_identidad
 from .schemas import (EmpleadoResponse, EmpleadoBase, EmpleadoUpdate, NominaResponse,
                       NominaBase, NominaListResponse, EmpleadoNominaRequest)
-from fastapi import APIRouter, HTTPException
 from crud.database import db
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import HTTPException, status
-
-
-
-# Dato biometrico, lo voy a usar para probar el endpoint regitrar horario
-# Funcion que tengo en la versión 3 del reco (otro repo)
-#def extraer_vector(imagen_bytes: bytes):
-#    np_arr = np.frombuffer(imagen_bytes, np.uint8)
- #   imagen_np = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-  #  vectores = face_recognition.face_encodings(imagen_np)
-   # if vectores:
-    #    return vectores[0]
-    #return None
-
-
-#def obtenerDatoBiometrico():
- #   ruta_base = os.path.dirname(os.path.abspath(__file__))
-  #  ruta_imagen = os.path.join(ruta_base, "../personas/personaAutorizada1.jpg")
-   # with open(ruta_imagen, "rb") as imagen:
-    #    contenido = imagen.read()
-     #   vector_neutro = extraer_vector(contenido)
-    #return vector_neutro
-
-
-
-
 
 
 class AsistenciaManual(BaseModel):
@@ -432,11 +396,11 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             data = await websocket.receive_json()
             id_empleado = data.get("id_empleado")
-            registrar = data.get("registrar", False)  # 📌 Modo registro
+            registrar = data.get("registrar", False)
 
-            if registrar and id_empleado:  # 📌 Modo registro
+            if registrar and id_empleado:
                 await registrar_empleado(websocket, data, id_empleado)
-            else:  # 📌 Modo verificación de identidad
+            else:
                 await verificar_identidad(websocket, data)
 
         except Exception as e:
