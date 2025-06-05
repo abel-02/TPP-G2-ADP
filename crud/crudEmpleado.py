@@ -293,7 +293,7 @@ class RegistroHorario:
         self.vector_capturado = vector_capturado
 
     @staticmethod
-    def registrar_asistencia(id_empleado: int, vector_biometrico: str):
+    def registrar_asistencia(id_empleado: int, vector_biometrico: str, fecha_hora: datetime):
         """
         Registra una nueva asistencia biométrica con toda la lógica de validación.
 
@@ -324,9 +324,10 @@ class RegistroHorario:
                 id_puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
 
                 # 2. Determinar tipo y estado de la asistencia
-                now = datetime.now()
-                fecha_actual = now.date()
-                hora_actual = now.time()
+                fecha_actual = fecha_hora.date()
+                hora_actual = fecha_hora.replace(second=0, microsecond=0).time()
+                print(fecha_hora)
+
 
                 # 📌 Establecer fecha y hora manualmente
                 #fecha_actual = datetime(2025, 6, 5).date()  # Cambia el año, mes y día

@@ -137,14 +137,15 @@ def obtener_empleado(numero_identificacion: str):
     return empleado
 
 # No puedo probarlo porque no hay registros laborales
+'''
 @app.post("/registros/")
-def registrar_horario(empleado_id: str, vectorBiometrico: str):
+def registrar_horario(empleado_id: str, vectorBiometrico: str, fecha_hora: datetime):
     try:
-        registro = RegistroHorario.registrar_asistencia(empleado_id, obtenerDatoBiometrico()) #Voy a probar con un vector predeterminado
+        registro = RegistroHorario.registrar_asistencia(empleado_id, vectorBiometrico, fecha_hora) #Voy a probar con un vector predeterminado
         return registro
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
+'''
 
 @app.delete("/empleados/{id_empleado}", status_code=status.HTTP_204_NO_CONTENT)
 async def borrar_empleado(

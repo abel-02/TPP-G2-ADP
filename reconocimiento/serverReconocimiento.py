@@ -90,11 +90,16 @@ async def verificar_identidad(websocket, data):
     # ✅ Gesto aleatorio requerido
     gesto_requerido = random.choice(["sonrisa", "giro", "cejas"])
 
+    # Aca manejo la fecha y hora
+    fecha_hora = data["fecha_hora"]
+    print(fecha_hora)
+    fecha_hora = datetime.fromisoformat(fecha_hora)
+    print(fecha_hora)
+
     # 🔁 Intentar gesto varias veces
     for intento in range(3):
         await websocket.send_text(f"🔄 Por favor, realiza el gesto: {gesto_requerido}")
         nueva_data = await websocket.receive_json()
-
         try:
             image_data_gesto = base64.b64decode(nueva_data["imagen"])
             image_gesto = np.array(Image.open(BytesIO(image_data_gesto)))
@@ -120,7 +125,7 @@ async def verificar_identidad(websocket, data):
             vector_str = ",".join(map(str, vector_actual))
 
             try:
-                registro = RegistroHorario.registrar_asistencia(int(nombre_detectado), vector_str)
+                registro = RegistroHorario.registrar_asistencia(int(nombre_detectado), vector_str, fecha_hora)
                 await websocket.send_text(
                     f"✅ {registro.tipo} registrada para {registro.id_empleado} a las {registro.hora.strftime('%H:%M:%S')} ({registro.estado_asistencia})")
                 print(f"✅ Fichaje registrado en DB para {registro.id_empleado}")
