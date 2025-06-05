@@ -8,6 +8,7 @@ from datetime import datetime
 from PIL import Image
 import random
 
+from crud.crudEmpleado import RegistroHorario
 from reconocimiento.service.reconocimiento import identificar_persona, identificar_gesto
 from reconocimiento.utils.utilsVectores import guardar_vector
 
@@ -110,11 +111,23 @@ async def verificar_identidad(websocket, data):
                 continue
 
             # 🎉 Gesto válido
-            fichajes[nombre_detectado] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            await websocket.send_text(f"✅ {nombre_detectado} fichado con verificación de liveness a las {fichajes[nombre_detectado]}")
-            print(f"✅ {nombre_detectado} fichado correctamente")
-            return
+            #fichajes[nombre_detectado] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            #await websocket.send_text(f"✅ {nombre_detectado} fichado con verificación de liveness a las {fichajes[nombre_detectado]}")
+            #print(f"✅ {nombre_detectado} fichado correctamente")
+            #return
 
+            # Convertir el vector a string (o el formato que esperás en la DB)
+            vector_str = ",".join(map(str, vector_actual))
+
+            try:
+                registro = RegistroHorario.registrar_asistencia(int(nombre_detectado), vector_str)
+                await websocket.send_text(
+                    f"✅ {registro.tipo} registrada para {registro.id_empleado} a las {registro.hora.strftime('%H:%M:%S')} ({registro.estado_asistencia})")
+                print(f"✅ Fichaje registrado en DB para {registro.id_empleado}")
+                return
+            except ValueError as e:
+                await websocket.send_text(f"❌ Error al registrar asistencia: {e}")
+                return
         except Exception as e:
             await websocket.send_text(f"⚠️ Error procesando imagen del gesto: {e}")
             continue

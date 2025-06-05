@@ -295,7 +295,7 @@ class RegistroHorario:
     @staticmethod
     def registrar_asistencia(id_empleado: int, vector_biometrico: str):
         """
-        Registra una nueva asistencia biométrica con toda la lógica de validación
+        Registra una nueva asistencia biométrica con toda la lógica de validación.
 
         Args:
             id_empleado (int): ID del empleado
@@ -307,11 +307,12 @@ class RegistroHorario:
         Raises:
             ValueError: Si hay error en los datos o en la operación
         """
+        conn = db.get_connection()  # ✅ Obtener conexión del pool
         try:
-            with db.conn.cursor() as cur:
+            with conn.cursor() as cur:
                 # 1. Recuperar información laboral del empleado
                 cur.execute(
-                    "SELECT puesto, turno, hora_inicio_turno, hora_fin_turno "
+                    "SELECT id_puesto, turno, hora_inicio_turno, hora_fin_turno "
                     "FROM informacion_laboral WHERE id_empleado = %s",
                     (id_empleado,)
                 )
@@ -320,14 +321,17 @@ class RegistroHorario:
                 if not resultado:
                     raise ValueError("No se encontró información laboral para el empleado")
 
-                puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
+                id_puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
 
                 # 2. Determinar tipo y estado de la asistencia
                 now = datetime.now()
                 fecha_actual = now.date()
                 hora_actual = now.time()
 
-                # Convertir a datetime para comparaciones
+                # 📌 Establecer fecha y hora manualmente
+                #fecha_actual = datetime(2025, 6, 5).date()  # Cambia el año, mes y día
+                #hora_actual = datetime(2025, 6, 5, 21, 00).time()  # Cambia la hora y los minutos
+
                 entrada_dt = datetime.combine(fecha_actual, hora_inicio_turno)
                 salida_dt = datetime.combine(fecha_actual, hora_fin_turno)
                 actual_dt = datetime.combine(fecha_actual, hora_actual)
@@ -337,7 +341,6 @@ class RegistroHorario:
                 tolerancia_a_tiempo = timedelta(minutes=5)
                 retraso_minimo = timedelta(minutes=15)
 
-                # Lógica de determinación
                 if entrada_dt - tiempo_permitido_entrada_temprana < actual_dt < entrada_dt:
                     tipo = "Entrada"
                     estado_asistencia = "Temprana"
@@ -371,156 +374,39 @@ class RegistroHorario:
                     """
                     INSERT INTO asistencia_biometrica (
                         id_empleado,
+                        id_puesto,
                         tipo,
                         fecha,
                         hora,
                         estado_asistencia,
                         turno_asistencia,
-                        puesto_del_asistente,
                         vector_capturado
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
-                              estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
+                    RETURNING id_asistencia_biometrica, id_empleado, id_puesto, tipo, fecha, hora,
+                              estado_asistencia, turno_asistencia, vector_capturado
                     """,
                     (
                         id_empleado,
+                        id_puesto,  # <- asegurate de tenerlo extraído antes
                         tipo,
                         fecha_actual,
                         hora_actual,
                         estado_asistencia,
                         turno,
-                        puesto,
                         vector_biometrico
                     )
                 )
 
                 resultado = cur.fetchone()
-                db.conn.commit()
-
+                conn.commit()
                 return RegistroHorario(*resultado)
 
         except Exception as e:
-            db.conn.rollback()
+            conn.rollback()
             raise ValueError(f"Error al registrar asistencia biométrica: {e}")
 
-    @staticmethod
-    def registrar_asistencia_manual(
-            id_empleado: int,
-            tipo: str,
-            fecha: date,
-            hora: time,
-            estado_asistencia: str = None,
-            turno_asistencia: str = None,
-            puesto_del_asistente: str = None,
-            vector_biometrico: str = "MANUAL"
-    ):
-        """
-        Registra una asistencia de forma manual (para uso administrativo)
-
-        Args:
-            id_empleado: ID del empleado
-            tipo: "Entrada" o "Salida"
-            fecha: Fecha del registro
-            hora: Hora del registro
-            estado_asistencia: Opcional - Estado de la asistencia
-            turno_asistencia: Opcional - Turno del empleado
-            puesto_del_asistente: Opcional - Puesto del empleado
-            vector_biometrico: Opcional - Vector biométrico (default "MANUAL")
-
-        Returns:
-            RegistroHorario: Instancia del nuevo registro
-
-        Raises:
-            ValueError: Si hay error en los datos o en la operación
-        """
-        try:
-            with db.conn.cursor() as cur:
-                # 1. Obtener información laboral si no se proporciona
-                if not all([estado_asistencia, turno_asistencia, puesto_del_asistente]):
-                    cur.execute(
-                        "SELECT puesto, turno, hora_inicio_turno, hora_fin_turno "
-                        "FROM informacion_laboral WHERE id_empleado = %s",
-                        (id_empleado,)
-                    )
-                    resultado = cur.fetchone()
-
-                    if not resultado:
-                        raise ValueError("No se encontró información laboral para el empleado")
-
-                    puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
-
-                    # Usar valores de la DB si no se proporcionaron
-                    puesto_del_asistente = puesto_del_asistente or puesto
-                    turno_asistencia = turno_asistencia or turno
-
-                    # Calcular estado si no se proporcionó
-                    if not estado_asistencia:
-                        entrada_dt = datetime.combine(fecha, hora_inicio_turno)
-                        salida_dt = datetime.combine(fecha, hora_fin_turno)
-                        registro_dt = datetime.combine(fecha, hora)
-
-                        # Lógica de determinación de estado (similar al método automático)
-                        if tipo == "Entrada":
-                            if registro_dt < entrada_dt - timedelta(minutes=60):
-                                estado_asistencia = "Fuera de rango"
-                            elif registro_dt < entrada_dt:
-                                estado_asistencia = "Temprana"
-                            elif registro_dt <= entrada_dt + timedelta(minutes=5):
-                                estado_asistencia = "A tiempo"
-                            elif registro_dt <= entrada_dt + timedelta(minutes=15):
-                                estado_asistencia = "Retraso minimo"
-                            else:
-                                estado_asistencia = "Tarde"
-                        elif tipo == "Salida":
-                            if registro_dt < salida_dt - timedelta(minutes=30):
-                                estado_asistencia = "Fuera de rango"
-                            elif registro_dt < salida_dt:
-                                estado_asistencia = "Temprana"
-                            elif registro_dt > salida_dt + timedelta(minutes=30):
-                                estado_asistencia = "Fuera de rango"
-                            else:
-                                estado_asistencia = "A tiempo" if registro_dt == salida_dt else "Tarde"
-
-                # Validar tipo
-                if tipo not in ["Entrada", "Salida"]:
-                    raise ValueError("El tipo debe ser 'Entrada' o 'Salida'")
-
-                # 2. Insertar en la base de datos
-                cur.execute(
-                    """
-                    INSERT INTO asistencia_biometrica (
-                        id_empleado,
-                        tipo,
-                        fecha,
-                        hora,
-                        estado_asistencia,
-                        turno_asistencia,
-                        puesto_del_asistente,
-                        vector_capturado
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
-                              estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado
-                    """,
-                    (
-                        id_empleado,
-                        tipo,
-                        fecha,
-                        hora,
-                        estado_asistencia,
-                        turno_asistencia,
-                        puesto_del_asistente,
-                        vector_biometrico
-                    )
-                )
-
-                resultado = cur.fetchone()
-                db.conn.commit()
-
-                return RegistroHorario(*resultado)
-
-        except Exception as e:
-            db.conn.rollback()
-            raise ValueError(f"Error al registrar asistencia manual: {e}")
+        finally:
+            db.return_connection(conn)  # ✅ Liberar la conexión
 
     @staticmethod
     def obtener_por_empleado(id_empleado: int, limite: int = None):
