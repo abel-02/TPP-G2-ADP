@@ -338,11 +338,16 @@ class RegistroHorario:
                 actual_dt = datetime.combine(fecha_actual, hora_actual)
 
                 # Tolerancias
-                tiempo_permitido_entrada_temprana = timedelta(minutes=60)
-                tolerancia_a_tiempo = timedelta(minutes=5)
-                retraso_minimo = timedelta(minutes=15)
+                tiempo_permitido_entrada_temprana = timedelta( minutes=60)  # Puede fichar hasta 1 hora antes de la entrada
+                tolerancia_a_tiempo = timedelta(minutes=5)  # Tiene 5 minutos de tolerancia para no marcar como retraso
+                retraso_minimo = timedelta(minutes=15)  # A partir de 15 min se considera "Tarde"
+                rango_valido_salida = timedelta(minutes=30)  # Se permite salir hasta 30 minutos antes o despuÃ©s
+                margen_max_salida_fuera = timedelta(hours=2)  # Luego de eso es "Fuera de rango"
 
-                if entrada_dt - tiempo_permitido_entrada_temprana < actual_dt < entrada_dt:
+                if actual_dt < entrada_dt - tiempo_permitido_entrada_temprana:
+                    tipo = "Entrada"
+                    estado_asistencia = "Fuera de rango"
+                elif entrada_dt - tiempo_permitido_entrada_temprana <= actual_dt < entrada_dt:
                     tipo = "Entrada"
                     estado_asistencia = "Temprana"
                 elif entrada_dt <= actual_dt <= entrada_dt + tolerancia_a_tiempo:
@@ -354,7 +359,10 @@ class RegistroHorario:
                 elif entrada_dt + retraso_minimo < actual_dt < salida_dt - timedelta(hours=3):
                     tipo = "Entrada"
                     estado_asistencia = "Tarde"
-                elif salida_dt - timedelta(minutes=30) <= actual_dt <= salida_dt + timedelta(minutes=30):
+                elif actual_dt < salida_dt - rango_valido_salida:
+                    tipo = "Salida"
+                    estado_asistencia = "Temprana"
+                elif salida_dt - rango_valido_salida <= actual_dt <= salida_dt + rango_valido_salida:
                     tipo = "Salida"
                     if actual_dt < salida_dt:
                         estado_asistencia = "Temprana"
@@ -362,13 +370,12 @@ class RegistroHorario:
                         estado_asistencia = "Tarde"
                     else:
                         estado_asistencia = "A tiempo"
+                elif salida_dt + rango_valido_salida < actual_dt <= salida_dt + margen_max_salida_fuera:
+                    tipo = "Salida"
+                    estado_asistencia = "Tarde"
                 else:
-                    if actual_dt < salida_dt:
-                        tipo = "Entrada"
-                        estado_asistencia = "Fuera de rango"
-                    else:
-                        tipo = "Salida"
-                        estado_asistencia = "Fuera de rango"
+                    tipo = "Salida"
+                    estado_asistencia = "Fuera de rango"
 
                 # 3. Insertar en la base de datos
                 cur.execute(
