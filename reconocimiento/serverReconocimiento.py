@@ -126,8 +126,10 @@ async def verificar_identidad(websocket, data):
 
             try:
                 registro = RegistroHorario.registrar_asistencia(int(id_empleado), vector_str, fecha_hora)
-
-                print(f"Tipo: {registro.tipo}, ID Empleado: {registro.id_empleado}, Hora: {registro.hora}, Fecha: {registro.fecha}")
+                if(registro is None):
+                    await websocket.send_text(f"Error al registrar asistencia biométrica: Entrada fuera del rango permitido")
+                    return
+                #print(f"Tipo: {registro.tipo}, ID Empleado: {registro.id_empleado}, Hora: {registro.hora}, Fecha: {registro.fecha}")
 
                 await websocket.send_text(f"✅ Se registró la {registro.tipo} del empleado con ID {id_empleado} a las {registro.hora.strftime('%H:%M')} el {registro.fecha.strftime('%Y-%m-%d')}")
                 print(f"✅ Fichaje registrado en DB para {registro.id_empleado}")

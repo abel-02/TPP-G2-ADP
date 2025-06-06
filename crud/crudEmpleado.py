@@ -347,6 +347,7 @@ class RegistroHorario:
                 if actual_dt < entrada_dt - tiempo_permitido_entrada_temprana:
                     tipo = "Entrada"
                     estado_asistencia = "Fuera de rango"
+                    return None
                 elif entrada_dt - tiempo_permitido_entrada_temprana <= actual_dt < entrada_dt:
                     tipo = "Entrada"
                     estado_asistencia = "Temprana"
