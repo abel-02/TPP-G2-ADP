@@ -280,142 +280,126 @@ class Empleado:
 
 
 class RegistroHorario:
-    def __init__(self, id_asistencia_biometrica, id_empleado, tipo, fecha, hora,
-                 estado_asistencia, turno_asistencia, puesto_del_asistente, vector_capturado):
-        self.id_asistencia_biometrica = id_asistencia_biometrica
+    def __init__(self, id_empleado, id_periodo, id_puesto, tipo, fecha, hora, estado=None, turno=None):
         self.id_empleado = id_empleado
+        self.id_periodo = id_periodo
+        self.id_puesto = id_puesto
         self.tipo = tipo
         self.fecha = fecha
         self.hora = hora
-        self.estado_asistencia = estado_asistencia
-        self.turno_asistencia = turno_asistencia
-        self.puesto_del_asistente = puesto_del_asistente
-        self.vector_capturado = vector_capturado
+        self.estado = estado
+        self.turno = turno
 
     @staticmethod
-    def registrar_asistencia(id_empleado: int, vector_biometrico: str, fecha_hora: datetime):
+    def registrar_asistencia(id_empleado: int, fecha_hora: datetime):
         """
-        Registra una nueva asistencia biométrica con toda la lógica de validación.
-
-        Args:
-            id_empleado (int): ID del empleado
-            vector_biometrico (str): Vector biométrico capturado
+        Registra una asistencia biométrica si corresponde, validando condiciones horarias
+        y evitando doble fichaje.
 
         Returns:
-            RegistroHorario: Instancia del nuevo registro
-
+            RegistroHorario: registro creado
+            None: si está fuera de rango permitido
         Raises:
-            ValueError: Si hay error en los datos o en la operación
+            ValueError: si ya existe fichaje, o no se puede registrar
         """
-        conn = db.get_connection()  # ✅ Obtener conexión del pool
+        conn = db.get_connection()
         try:
             with conn.cursor() as cur:
-                # 1. Recuperar información laboral del empleado
-                cur.execute(
-                    "SELECT id_puesto, turno, hora_inicio_turno, hora_fin_turno "
-                    "FROM informacion_laboral WHERE id_empleado = %s",
-                    (id_empleado,)
-                )
+                # 🔍 Obtener datos laborales
+                cur.execute("""
+                    SELECT id_puesto, turno, hora_inicio_turno, hora_fin_turno
+                    FROM informacion_laboral
+                    WHERE id_empleado = %s
+                """, (id_empleado,))
                 resultado = cur.fetchone()
-
                 if not resultado:
                     raise ValueError("No se encontró información laboral para el empleado")
 
-                id_puesto, turno, hora_inicio_turno, hora_fin_turno = resultado
+                id_puesto, turno, hora_inicio, hora_fin = resultado
 
-                # 2. Determinar tipo y estado de la asistencia
                 fecha_actual = fecha_hora.date()
                 hora_actual = fecha_hora.replace(second=0, microsecond=0).time()
-                print(fecha_hora)
+                print(fecha_actual)
+                # 🗓 Periodo
+                cur.execute("SELECT obtener_o_crear_periodo_empleado(%s, %s);", (id_empleado, fecha_actual))
+                id_periodo = cur.fetchone()[0]
 
+                # 🕐 Fechas completas
+                entrada_dt = datetime.combine(fecha_actual, hora_inicio)
+                salida_dt = datetime.combine(fecha_actual, hora_fin)
+                actual_dt = fecha_hora.replace(second=0, microsecond=0)
 
-                # 📌 Establecer fecha y hora manualmente
-                #fecha_actual = datetime(2025, 6, 5).date()  # Cambia el año, mes y día
-                #hora_actual = datetime(2025, 6, 5, 21, 00).time()  # Cambia la hora y los minutos
+                # ⏱️ Rango y tolerancias
+                entrada_temprana = entrada_dt - timedelta(minutes=60)
+                tolerancia = timedelta(minutes=5)
+                retraso_min = timedelta(minutes=15)
+                salida_valida = timedelta(minutes=30)
+                salida_fuera = timedelta(hours=2)
 
-                entrada_dt = datetime.combine(fecha_actual, hora_inicio_turno)
-                salida_dt = datetime.combine(fecha_actual, hora_fin_turno)
-                actual_dt = datetime.combine(fecha_actual, hora_actual)
-
-                # Tolerancias
-                tiempo_permitido_entrada_temprana = timedelta( minutes=60)  # Puede fichar hasta 1 hora antes de la entrada
-                tolerancia_a_tiempo = timedelta(minutes=5)  # Tiene 5 minutos de tolerancia para no marcar como retraso
-                retraso_minimo = timedelta(minutes=15)  # A partir de 15 min se considera "Tarde"
-                rango_valido_salida = timedelta(minutes=30)  # Se permite salir hasta 30 minutos antes o despuÃ©s
-                margen_max_salida_fuera = timedelta(hours=2)  # Luego de eso es "Fuera de rango"
-
-                if actual_dt < entrada_dt - tiempo_permitido_entrada_temprana:
-                    tipo = "Entrada"
-                    estado_asistencia = "Fuera de rango"
-                    return None
-                elif entrada_dt - tiempo_permitido_entrada_temprana <= actual_dt < entrada_dt:
-                    tipo = "Entrada"
-                    estado_asistencia = "Temprana"
-                elif entrada_dt <= actual_dt <= entrada_dt + tolerancia_a_tiempo:
-                    tipo = "Entrada"
-                    estado_asistencia = "A tiempo"
-                elif entrada_dt + tolerancia_a_tiempo < actual_dt <= entrada_dt + retraso_minimo:
-                    tipo = "Entrada"
-                    estado_asistencia = "Retraso minimo"
-                elif entrada_dt + retraso_minimo < actual_dt < salida_dt - timedelta(hours=3):
-                    tipo = "Entrada"
-                    estado_asistencia = "Tarde"
-                elif actual_dt < salida_dt - rango_valido_salida:
+                # 🧠 Lógica de tipo y estado
+                if actual_dt < entrada_temprana:
+                    return None  # demasiado temprano
+                elif entrada_temprana <= actual_dt < entrada_dt:
+                    tipo, estado = "Entrada", "Temprana"
+                elif entrada_dt <= actual_dt <= entrada_dt + tolerancia:
+                    tipo, estado = "Entrada", "A tiempo"
+                elif entrada_dt + tolerancia < actual_dt <= entrada_dt + retraso_min:
+                    tipo, estado = "Entrada", "Retraso mínimo"
+                elif entrada_dt + retraso_min < actual_dt < salida_dt - timedelta(hours=3):
+                    tipo, estado = "Entrada", "Tarde"
+                elif actual_dt < salida_dt - salida_valida:
+                    tipo, estado = "Salida", "Temprana"
+                elif salida_dt - salida_valida <= actual_dt <= salida_dt + salida_valida:
                     tipo = "Salida"
-                    estado_asistencia = "Temprana"
-                elif salida_dt - rango_valido_salida <= actual_dt <= salida_dt + rango_valido_salida:
-                    tipo = "Salida"
-                    if actual_dt < salida_dt:
-                        estado_asistencia = "Temprana"
-                    elif actual_dt > salida_dt:
-                        estado_asistencia = "Tarde"
-                    else:
-                        estado_asistencia = "A tiempo"
-                elif salida_dt + rango_valido_salida < actual_dt <= salida_dt + margen_max_salida_fuera:
-                    tipo = "Salida"
-                    estado_asistencia = "Tarde"
+                    estado = "A tiempo" if actual_dt == salida_dt else "Temprana" if actual_dt < salida_dt else "Tarde"
+                elif salida_dt + salida_valida < actual_dt <= salida_dt + salida_fuera:
+                    tipo, estado = "Salida", "Tarde"
                 else:
-                    tipo = "Salida"
-                    estado_asistencia = "Fuera de rango"
+                    tipo, estado = "Salida", "Fuera de rango"
 
-                # 3. Insertar en la base de datos
-                cur.execute(
-                    """
+                # ❌ Validar si ya fichó ese tipo hoy
+                cur.execute("""
+                    SELECT 1 FROM asistencia_biometrica
+                    WHERE id_empleado = %s AND tipo = %s AND fecha = %s
+                """, (id_empleado, tipo, fecha_actual))
+                if cur.fetchone():
+                    raise ValueError(f"Ya se registró una {tipo.lower()} hoy para este empleado.")
+
+                if tipo == "Salida":
+                    cur.execute("""
+                        SELECT 1 FROM asistencia_biometrica
+                        WHERE id_empleado = %s AND tipo = 'Entrada' AND fecha = %s
+                    """, (id_empleado, fecha_actual))
+                    if not cur.fetchone():
+                        raise ValueError("No se puede registrar una salida sin haber registrado una entrada.")
+
+                # ✅ Insertar registro
+                cur.execute("""
                     INSERT INTO asistencia_biometrica (
-                        id_empleado,
-                        id_puesto,
-                        tipo,
-                        fecha,
-                        hora,
-                        estado_asistencia,
-                        turno_asistencia,
-                        vector_capturado
+                        id_empleado, id_periodo, id_puesto, tipo, fecha, hora,
+                        estado_asistencia, turno_asistencia
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id_empleado, id_puesto, tipo, fecha, hora,
-                              estado_asistencia, turno_asistencia, vector_capturado, id_asistencia_biometrica 
-                    """,
-                    (
-                        id_empleado,
-                        id_puesto,
-                        tipo,
-                        fecha_actual,
-                        hora_actual,
-                        estado_asistencia,
-                        turno,
-                        vector_biometrico
-                    )
-                )
-
-                resultado = cur.fetchone()
+                    RETURNING id_empleado, id_periodo, id_puesto, tipo, fecha, hora, estado_asistencia, turno_asistencia
+                """, (
+                    id_empleado, id_periodo, id_puesto, tipo,
+                    fecha_actual, hora_actual, estado, turno
+                ))
+                resultado_insert = cur.fetchone()
+                if not resultado_insert or len(resultado_insert) < 6:
+                    raise ValueError(f"Error al insertar registro, datos incompletos: {resultado_insert}")
+                registro_data = list(resultado_insert)
+                registro_data[4] = datetime.strptime(registro_data[4], "%Y-%m-%d").date() if isinstance(registro_data[4], str) else registro_data[4]
+                registro_data[5] = datetime.strptime(registro_data[5], "%H:%M:%S").time() if isinstance(registro_data[5], str) else registro_data[5]
                 conn.commit()
-                return RegistroHorario(*resultado)
+
+                return RegistroHorario(*registro_data)
 
         except Exception as e:
             conn.rollback()
             raise ValueError(f"Error al registrar asistencia biométrica: {e}")
 
         finally:
-            db.return_connection(conn)  # ✅ Liberar la conexión
+            db.return_connection(conn)
 
     @staticmethod
     def obtener_por_empleado(id_empleado: int, limite: int = None):
