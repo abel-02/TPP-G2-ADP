@@ -92,7 +92,11 @@ async def verificar_identidad(websocket, data):
             await websocket.send_text(f"🔄 Por favor, realiza el gesto: {gesto_requerido}")
         if intento > 0:
             await websocket.send_text(f"🚫 Gesto incorrecto. Por favor, realiza el gesto: {gesto_requerido}")
-        nueva_data = await websocket.receive_json()
+        try:
+            nueva_data = await websocket.receive_json()
+        except Exception as e:
+            await websocket.send_text(f"⚠️ La conexión fue cerrada inesperadamente: {e}")
+            return
 
         try:
             image_data_gesto = base64.b64decode(nueva_data["imagen"])
