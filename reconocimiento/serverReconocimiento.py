@@ -1,122 +1,134 @@
-'''
-import psycopg2
-
-from crud.database import db
-from reconocimiento.service.reconocimiento import identificar_persona
-
-import base64
-import numpy as np
-import cv2
+from fastapi import FastAPI
 import face_recognition
-from PIL import Image
+import numpy as np
+import base64
+import cv2
 from io import BytesIO
 from datetime import datetime
+from PIL import Image
+import random
+
+from crud.crudEmpleado import RegistroHorario
+from reconocimiento.service.reconocimiento import identificar_persona, identificar_gesto
+from reconocimiento.utils.utilsVectores import guardar_vector
+
+app = FastAPI()
+
+# Base de datos en memoria para fichajes
+fichajes = {}
+
+# eSTA ES LA VERSION QUE ANDABA
+
+async def registrar_empleado(websocket, data, id_empleado):
+    """Registra un empleado pidiendo imágenes de a una, validando gesto por gesto."""
+    gestos_requeridos = [("normal", None), ("sonrisa", "sonrisa"), ("giro", "giro")]
+    vectores_guardar = {}  # Diccionario para almacenar los vectores temporales
+
+    for tipo, gesto in gestos_requeridos:
+        primer_intento = True
+        while True:
+            if primer_intento:
+                await websocket.send_text(f"📸 Por favor, envía imagen del gesto: '{tipo}'")
+                primer_intento = False  # Ya pedimos la imagen
+
+            data = await websocket.receive_json()
+
+            try:
+                image_data = base64.b64decode(data[f"imagen_{tipo}"])
+                image = np.array(Image.open(BytesIO(image_data)))
+                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                face_encodings = face_recognition.face_encodings(rgb_image)
+
+                if not face_encodings:
+                    await websocket.send_text(f"❌ No se detectó rostro en imagen '{tipo}', intenta de nuevo")
+                    continue
+
+                vector_actual = face_encodings[0].astype(np.float64)
+
+                if gesto:
+                    if not identificar_gesto(rgb_image, gesto):
+                        await websocket.send_text(f"🚫 El gesto '{gesto}' no fue detectado correctamente, intenta de nuevo")
+                        continue  # 👈 volver a pedir imagen sin mandar alerta nueva
+
+                # ✅ Gesto validado: almacenar vector
+                vectores_guardar[tipo] = vector_actual
+                break  # 👉 pasar al siguiente gesto
+
+            except Exception as e:
+                await websocket.send_text(f"⚠️ Error procesando imagen '{tipo}': {e}")
+                continue
+    # Si todos los gestos fueron validados, guardar los vectores
+    if len(vectores_guardar) == len(gestos_requeridos):
+        for tipo, vector in vectores_guardar.items():
+            guardar_vector(id_empleado, tipo, vector)
+        await websocket.send_text(f"✅ Persona '{id_empleado}' registrada correctamente con gestos")
+        print(f"✅ Persona '{id_empleado}' registrada")
+    else:
+        await websocket.send_text(f"❌ No se completaron todos los gestos requeridos, registro cancelado")
 
 
-def procesar_imagen(data):
-    """Convierte la imagen recibida en un formato compatible para reconocimiento facial."""
+async def verificar_identidad(websocket, data):
     image_data = base64.b64decode(data["imagen"])
-    image = Image.open(BytesIO(image_data))
-    image = np.array(image)
-
+    image = np.array(Image.open(BytesIO(image_data)))
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    face_locations = face_recognition.face_locations(rgb_image)
-    face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
-
-    print(f"Rostros detectados: {len(face_locations)}")
+    face_encodings = face_recognition.face_encodings(rgb_image)
 
     if not face_encodings:
-        return None, "🚫 No se detectó un rostro válido"
+        await websocket.send_text("🚫 No se detectó un rostro válido")
+        return
 
-    return face_encodings[0], None
+    vector = face_encodings[0].astype(np.float64)
+    id_empleado, distancia = identificar_persona(vector)
 
-# Metodo del prototipo
-#def registrar_persona(nombre, vector):
-#    """Guarda el vector facial de una nueva persona."""
-#    contador = 1
-#    while os.path.exists(os.path.join("../vectores", f"{nombre}_{contador}.npy")):
-#        contador += 1
+    if not id_empleado:
+        await websocket.send_text("🚫 Persona no reconocida")
+        return
 
-#    guardar_vector(nombre, contador, vector)
-#    return f"✅ Persona '{nombre}' registrada exitosamente con vector {contador}"
+    fecha_hora = datetime.fromisoformat(data["fecha_hora"])
+    gesto_requerido = random.choice(["sonrisa", "giro", "cejas"])
 
+    for intento in range(3):
+        await websocket.send_text(f"🔄 Por favor, realiza el gesto: {gesto_requerido}")
+        nueva_data = await websocket.receive_json()
 
+        try:
+            image_data_gesto = base64.b64decode(nueva_data["imagen"])
+            image_gesto = np.array(Image.open(BytesIO(image_data_gesto)))
+            rgb_gesto = cv2.cvtColor(image_gesto, cv2.COLOR_BGR2RGB)
+            face_encodings_gesto = face_recognition.face_encodings(rgb_gesto)
 
-def registrar_dato_biometrico_facial(id_empleado, vector):
-    """Registra el vector biométrico asegurando que está correctamente en formato `float64`."""
+            if not face_encodings_gesto:
+                await websocket.send_text("❌ No se detectó rostro en la imagen del gesto")
+                continue
 
-    try:
-        conn, cur = db.get_conn_cursor()
+            if not identificar_gesto(rgb_gesto, gesto_requerido):
+                await websocket.send_text(f"🚫 Gesto incorrecto. Repite: {gesto_requerido}")
+                continue
 
-        # Validar `id_empleado`
-        if id_empleado is None or not isinstance(id_empleado, int):
-            return "❌ Error: ID del empleado no es válido."
+            # 🎉 Gesto válido -> registrar
+            try:
+                registro = RegistroHorario.registrar_asistencia(int(id_empleado), fecha_hora)
+                if registro is None:
+                    await websocket.send_text("⚠️ Entrada fuera del rango permitido.")
+                    return
 
-        # Convertir el vector a `float64`
-        vector_np = np.array(vector, dtype=np.float64)
-        vector_bytes = vector_np.tobytes()
+                await websocket.send_text(f"✅ Se registró la {registro.tipo} del empleado {id_empleado} a las {registro.hora.strftime('%H:%M')} del {registro.fecha.strftime('%Y-%m-%d')}")
+                return
 
-        # 🛠️ Verificar que el tamaño sea múltiplo de `8`
-        buffer_size = vector_np.nbytes
-        element_size = np.dtype(np.float64).itemsize
-        if buffer_size % element_size != 0:
-            return f"❌ Error: Tamaño del vector inválido ({buffer_size}), debe ser múltiplo de {element_size}."
+            except ValueError as e:
+                await websocket.send_text(f"❌ {e}")
+                return
 
-        # Insertar en la base de datos
-        query = "INSERT INTO dato_biometrico_facial (id_empleado, vector_biometrico) VALUES (%s, %s)"
-        cur.execute(query, (id_empleado, psycopg2.Binary(vector_bytes)))
-        conn.commit()
+        except Exception as e:
+            await websocket.send_text(f"⚠️ Error procesando imagen del gesto: {e}")
+            return
 
-        return f"✅ Vector biométrico registrado correctamente para el empleado con ID '{id_empleado}'."
-
-    except Exception as e:
-        return f"❌ Error al registrar el vector biométrico: {e}"
-
-    finally:
-        cur.close()
-        conn.close()
-
-
-def detectar_persona(vector):
-    """Identifica si el empleado ya está registrado comparando con la base de datos."""
-
-    try:
-        conn, cur = db.get_conn_cursor()
-        id_empleado, distancia = identificar_persona(vector)
-
-        if id_empleado:
-            fichajes[id_empleado] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return f"✅ Empleado ID {id_empleado} fichado a las {fichajes[id_empleado]}"
-
-        return "❌ Rostro NO reconocido"
-
-    except Exception as e:
-        return f"❌ Error en la identificación de persona: {e}"
-
-    finally:
-        cur.close()
-        conn.close()
+    await websocket.send_text("🚫 Verificación fallida luego de 3 intentos.")
 
 
-def obtener_vector(id_empleado):
-    """Recupera el vector biométrico usando el ID del empleado."""
 
-    try:
-        conn, cur = db.get_conn_cursor()
-        cur.execute("SELECT vector_biometrico FROM dato_biometrico_facial WHERE id_empleado = %s", (id_empleado,))
-        resultado = cur.fetchone()
 
-        if resultado:
-            vector_recuperado = np.frombuffer(resultado[0], dtype=np.float64)
-            return vector_recuperado
 
-        return None
-
-    except Exception as e:
-        return f"❌ Error al obtener el vector biométrico: {e}"
-
-    finally:
-        cur.close()
-        conn.close()
-
-'''
+@app.get("/fichadas")
+async def obtener_fichajes():
+    return fichajes
