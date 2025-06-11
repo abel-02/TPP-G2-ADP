@@ -88,7 +88,10 @@ async def verificar_identidad(websocket, data):
     gesto_requerido = random.choice(["sonrisa", "giro", "cejas"])
 
     for intento in range(3):
-        await websocket.send_text(f"🔄 Por favor, realiza el gesto: {gesto_requerido}")
+        if intento == 0:  # Solo en la primera iteración se envía este mensaje
+            await websocket.send_text(f"🔄 Por favor, realiza el gesto: {gesto_requerido}")
+        if intento > 0:
+            await websocket.send_text(f"🚫 Gesto incorrecto. Por favor, realiza el gesto: {gesto_requerido}")
         nueva_data = await websocket.receive_json()
 
         try:
@@ -102,7 +105,6 @@ async def verificar_identidad(websocket, data):
                 continue
 
             if not identificar_gesto(rgb_gesto, gesto_requerido):
-                await websocket.send_text(f"🚫 Gesto incorrecto. Repite: {gesto_requerido}")
                 continue
 
             # 🎉 Gesto válido -> registrar
@@ -112,7 +114,10 @@ async def verificar_identidad(websocket, data):
                     await websocket.send_text("⚠️ Entrada fuera del rango permitido.")
                     return
 
-                await websocket.send_text(f"✅ Se registró la {registro.tipo} del empleado {id_empleado} a las {registro.hora.strftime('%H:%M')} del {registro.fecha.strftime('%Y-%m-%d')}")
+                await websocket.send_text(
+                    f"✅ Se registró la {registro.tipo} del empleado {id_empleado} "
+                    f"a las {registro.hora.strftime('%H:%M')} del {registro.fecha.strftime('%Y-%m-%d')}"
+                )
                 return
 
             except ValueError as e:
@@ -124,9 +129,6 @@ async def verificar_identidad(websocket, data):
             return
 
     await websocket.send_text("🚫 Verificación fallida luego de 3 intentos.")
-
-
-
 
 
 @app.get("/fichadas")
