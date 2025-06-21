@@ -79,32 +79,6 @@ def health_check():
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-""""
-@app.post("/empleados/", response_model=EmpleadoResponse)
-def crear_empleado(empleado: EmpleadoBase):
-    try:
-        empleado_creado = AdminCRUD.crear_empleado(empleado)
-        return {
-            "nombre": empleado.nombre,
-            "apellido": empleado.apellido,
-            "tipo_identificacion": empleado.tipo_identificacion,
-            "numero_identificacion": empleado.numero_identificacion,
-            "fecha_nacimiento": empleado.fecha_nacimiento,
-            "correo_electronico": empleado.correo_electronico,
-            "telefono": empleado.telefono,
-            "calle": empleado.calle,
-            "numero_calle": empleado.numero_calle,
-            "localidad": empleado.localidad,
-            "partido": empleado.partido,
-            "provincia": empleado.provincia,
-            "genero": empleado.genero,
-            "pais_nacimiento": empleado.pais_nacimiento,
-            "estado_civil": empleado.estado_civil
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-"""
-
 
 @app.post("/empleados/", response_model=EmpleadoBase)
 async def crear_empleado(empleado: EmpleadoBase):
@@ -135,17 +109,6 @@ def obtener_empleado(numero_identificacion: str):
     if not empleado:
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
     return empleado
-
-# No puedo probarlo porque no hay registros laborales
-'''
-@app.post("/registros/")
-def registrar_horario(empleado_id: str, vectorBiometrico: str, fecha_hora: datetime):
-    try:
-        registro = RegistroHorario.registrar_asistencia(empleado_id, vectorBiometrico, fecha_hora) #Voy a probar con un vector predeterminado
-        return registro
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-'''
 
 @app.delete("/empleados/{id_empleado}", status_code=status.HTTP_204_NO_CONTENT)
 async def borrar_empleado(
