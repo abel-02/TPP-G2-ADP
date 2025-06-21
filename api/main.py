@@ -24,11 +24,6 @@ class AsistenciaManual(BaseModel):
     hora: time
     estado_asistencia: Optional[str] = None
 
-class CalculoNominaRequest(BaseModel):
-    id_empleado: int
-    periodo: str
-    fecha_calculo: str = Field(default_factory=lambda: datetime.now().strftime('%Y-%m-%d'))
-
 
 app = FastAPI()
 
@@ -245,79 +240,6 @@ def obtener_informacion_laboral(empleado_id: int):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-#NOMINAS----------------------------------------------------------------------------------------
-
-# Obtener última nómina de un empleado (GET)
-@app.get("/nominas/empleado/{id_empleado}/ultima", response_model=NominaResponse)
-async def obtener_ultima_nomina_empleado(id_empleado: int):
-    try:
-        nominas = NominaCRUD.obtener_nominas_empleado(id_empleado)
-        if not nominas:
-            raise HTTPException(status_code=404, detail="No se encontraron nóminas para este empleado")
-        return nominas[0]  # La más reciente
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# Obtener todas las nóminas de un empleado (GET)
-@app.get("/nominas/empleado/{id_empleado}", response_model=NominaListResponse)
-async def obtener_nominas_empleado(id_empleado: int):
-    try:
-        nominas = NominaCRUD.obtener_nominas_empleado(id_empleado)
-        return {"nominas": nominas}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/nominas/empleado/buscar", response_model=NominaListResponse)
-async def buscar_nominas_empleado(
-    request: EmpleadoNominaRequest,
-    nomina_crud: NominaCRUD = Depends()
-):
-    try:
-        nominas = nomina_crud.obtener_nominas_empleado(request.id_empleado)
-
-        if request.periodo:
-            nominas = [n for n in nominas if n.periodo == request.periodo]
-
-        return {"nominas": nominas}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# Opción 4: Obtener nómina específica por ID (GET)
-@app.get("/nominas/{id_nomina}", response_model=NominaResponse)
-async def obtener_nomina(id_nomina: int):
-    try:
-        nomina = NominaCRUD.obtener_nomina(id_nomina)
-        if not nomina:
-            raise HTTPException(status_code=404, detail="Nómina no encontrada")
-        return nomina
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/calcular", response_model=NominaResponse)
-async def calcular_nomina_endpoint(
-        request: CalculoNominaRequest,
-        nomina_crud: NominaCRUD = Depends()
-):
-    """
-    Calcula la nómina para un empleado en un período específico.
-
-    Parámetros desde el frontend:
-    - id_empleado: ID del empleado
-    - periodo: Período a calcular (ej. "MAYO 2024")
-    - fecha_calculo (opcional): Fecha de cálculo (default: hoy)
-    """
-    try:
-        return nomina_crud.calcular_nomina(
-            id_empleado=request.id_empleado,
-            periodo_texto=request.periodo,
-            fecha_calculo=request.fecha_calculo
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/{empleado_id}/puesto")
 def obtener_puesto_empleado(empleado_id: int):
