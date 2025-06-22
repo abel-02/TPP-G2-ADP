@@ -1,4 +1,7 @@
 import numpy as np
+
+from crud.database import db
+from reconocimiento.utils.cifrado import descifrar_vector
 from reconocimiento.utils.utilsVectores import cargar_vectores, UMBRAL, cargar_vectores_por_tipo
 
 from reconocimiento.utils.utils_gestos import detectar_sonrisa, detectar_giro, detectar_cejas_levantadas
@@ -41,3 +44,49 @@ def identificar_gesto(image_np, gesto_requerido):
     elif gesto_requerido == "cejas":
         return detectar_cejas_levantadas(image_np)
     return False
+
+def buscar_mejor_match(vector_actual):
+    """
+    Compara el vector_actual contra todos los vectores 'neutro' guardados en la DB
+    y devuelve (id_empleado, distancia) si encuentra un match dentro del umbral.
+    """
+    try:
+        conn = db.get_connection()
+        cur = conn.cursor()
+
+        query = """
+            SELECT id_empleado, vector_biometrico
+            FROM dato_biometrico_facial
+            WHERE tipo_vector = 'Neutro'
+        """
+        cur.execute(query)
+        resultados = cur.fetchall()
+
+        mejor_match = None
+        menor_distancia = float('inf')
+
+        for id_empleado, vector_cifrado in resultados:
+            try:
+                vector_guardado = descifrar_vector(vector_cifrado)
+                distancia = np.linalg.norm(vector_actual - vector_guardado)
+
+                if distancia < UMBRAL and distancia < menor_distancia:
+                    mejor_match = id_empleado
+                    menor_distancia = distancia
+
+            except Exception as e:
+                print(f"⚠️ Error con vector de {id_empleado}: {e}")
+                continue
+
+        if mejor_match is not None:
+            return mejor_match, menor_distancia
+        else:
+            return None, None
+
+    except Exception as e:
+        print(f"❌ Error en la comparación de vectores: {e}")
+        return None, None
+
+    finally:
+        cur.close()
+        db.return_connection(conn)

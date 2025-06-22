@@ -8,7 +8,7 @@ from PIL import Image
 import random
 
 from crud.crudEmpleado import RegistroHorario
-from reconocimiento.service.reconocimiento import identificar_persona, identificar_gesto
+from reconocimiento.service.reconocimiento import identificar_persona, identificar_gesto, buscar_mejor_match
 from reconocimiento.utils.utilsVectores import guardar_vector
 
 from fastapi.websockets import WebSocketState
@@ -78,7 +78,7 @@ async def verificar_identidad(websocket, data):
         return
 
     vector = face_encodings[0].astype(np.float64)
-    id_empleado, distancia = identificar_persona(vector)
+    id_empleado, distancia = buscar_mejor_match(vector)
 
     if not id_empleado:
         await websocket.send_text("🚫 Persona no reconocida")
