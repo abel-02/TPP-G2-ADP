@@ -2,6 +2,7 @@ import json
 import os
 import numpy as np
 from crud.database import db
+from reconocimiento.utils.cifrado import cifrar_vector, descifrar_vector
 
 # Configuración
 UMBRAL = 0.5
@@ -22,9 +23,8 @@ TIPO_MAP = {
 
 def guardar_vector(id_empleado: int, tipo_gesto_raw: str, vector_np):
     """
-    Guarda un vector biométrico en la base de datos utilizando connection pooling.
-    Si ya existe para ese id_empleado y tipo_vector, lo actualiza (ON CONFLICT DO UPDATE).
-    Retorna True si la operación fue exitosa, False en caso contrario.
+    Guarda un vector biométrico cifrado en la base de datos.
+    Si ya existe para ese id_empleado y tipo_vector, lo actualiza.
     """
     tipo_vector_db = TIPO_MAP.get(tipo_gesto_raw.lower())
 
@@ -35,7 +35,8 @@ def guardar_vector(id_empleado: int, tipo_gesto_raw: str, vector_np):
     try:
         conn = db.get_connection()
         cur = conn.cursor()
-        vector_json = json.dumps(vector_np.tolist())
+
+        vector_cifrado = cifrar_vector(vector_np)  # Cifrado aquí
 
         query = """
             INSERT INTO dato_biometrico_facial (id_empleado, tipo_vector, vector_biometrico)
@@ -43,21 +44,49 @@ def guardar_vector(id_empleado: int, tipo_gesto_raw: str, vector_np):
             ON CONFLICT (id_empleado, tipo_vector) DO UPDATE
             SET vector_biometrico = EXCLUDED.vector_biometrico
         """
-        cur.execute(query, (id_empleado, tipo_vector_db, vector_json))
+        cur.execute(query, (id_empleado, tipo_vector_db, vector_cifrado))
         conn.commit()
-        print(f"✅ Vector '{tipo_vector_db}' guardado/actualizado para empleado {id_empleado}")
+        print(f"✅ Vector '{tipo_vector_db}' cifrado y guardado para empleado {id_empleado}")
         return True
 
     except Exception as e:
-        print(f"❌ Error al guardar/actualizar vector en la base de datos: {e}")
+        print(f"❌ Error al guardar/actualizar vector cifrado: {e}")
         return False
 
     finally:
         cur.close()
         db.return_connection(conn)
 
+def obtener_vector(id_empleado: int, tipo_gesto_raw: str):
+    tipo_vector_db = TIPO_MAP.get(tipo_gesto_raw.lower())
 
+    try:
+        conn = db.get_connection()
+        cur = conn.cursor()
 
+        query = """
+            SELECT vector_biometrico
+            FROM dato_biometrico_facial
+            WHERE id_empleado = %s AND tipo_vector = %s
+        """
+        cur.execute(query, (id_empleado, tipo_vector_db))
+        row = cur.fetchone()
+
+        if row is None:
+            print("⚠️ Vector no encontrado.")
+            return None
+
+        vector_cifrado = row[0]
+        vector_np = descifrar_vector(vector_cifrado)
+        return vector_np
+
+    except Exception as e:
+        print(f"❌ Error al obtener/descifrar vector: {e}")
+        return None
+
+    finally:
+        cur.close()
+        db.return_connection(conn)
 
 def cargar_vectores():
     """
