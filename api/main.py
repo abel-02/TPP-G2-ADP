@@ -10,8 +10,7 @@ from pydantic import BaseModel, Field
 from typing import Tuple, List
 
 from reconocimiento.serverReconocimiento import registrar_empleado, verificar_identidad
-from .schemas import (EmpleadoResponse, EmpleadoBase, EmpleadoUpdate, NominaResponse,
-                      NominaBase, NominaListResponse, EmpleadoNominaRequest)
+from .schemas import (EmpleadoResponse, EmpleadoBase, EmpleadoUpdate)
 from crud.database import db
 from fastapi.middleware.cors import CORSMiddleware
 
