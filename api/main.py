@@ -6,7 +6,6 @@ from datetime import datetime, date, time
 from crud.crudAdmintrador import AdminCRUD
 from crud.crudEmpleado import RegistroHorario
 from crud.crudEmpleado import Empleado
-from crud.crudNomina import NominaCRUD
 from pydantic import BaseModel, Field
 from typing import Tuple, List
 

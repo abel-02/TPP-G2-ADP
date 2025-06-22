@@ -1,7 +1,6 @@
 import psycopg2
 from psycopg2 import pool  # Opcional para connection pooling
-import os
-from datetime import datetime, timedelta, date, time
+from datetime import time
 from contextlib import contextmanager
 
 

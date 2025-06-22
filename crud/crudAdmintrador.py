@@ -1,6 +1,5 @@
-from datetime import datetime, date, time
+from datetime import date, time
 import psycopg2
-from psycopg2 import sql
 from .database import db
 from .crudEmpleado import Empleado
 from typing import Optional
