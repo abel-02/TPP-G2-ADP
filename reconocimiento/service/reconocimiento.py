@@ -1,5 +1,5 @@
 import numpy as np
-from reconocimiento.utils.utilsVectores import cargar_vectores, UMBRAL
+from reconocimiento.utils.utilsVectores import cargar_vectores, UMBRAL, cargar_vectores_por_tipo
 
 from reconocimiento.utils.utils_gestos import detectar_sonrisa, detectar_giro, detectar_cejas_levantadas
 
@@ -20,17 +20,17 @@ def identificar_persona(vector_actual):
 
     vector_actual = vector_actual.astype(np.float64)  # 👈 Asegura tipo correcto
 
-    datos_vectores = cargar_vectores()
+    vectores_neutros = cargar_vectores_por_tipo("neutro")
 
-    for persona_id, vectores_guardados in datos_vectores.items():
+    for persona_id, vectores_guardados in vectores_neutros.items():
         for tipo, vector_guardado in vectores_guardados.items():
             vector_guardado = vector_guardado.astype(np.float64)  # 👈 Asegura tipo correcto
             print(f"🧪 Tipos: actual={vector_actual.dtype}, guardado={vector_guardado.dtype}")
             distancia = np.linalg.norm(vector_actual - vector_guardado)
             if distancia < UMBRAL:
-                return persona_id, distancia  # ✅ Persona reconocida
+                return persona_id, distancia  # Persona reconocida
 
-    return None, None  # 🚫 No se encontró coincidencia
+    return None, None  # No se encontró coincidencia
 
 
 def identificar_gesto(image_np, gesto_requerido):

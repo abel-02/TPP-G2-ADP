@@ -136,5 +136,40 @@ def cargar_vectores():
         cur.close()
         db.return_connection(conn)
 
+def cargar_vectores_por_tipo(tipo: str = 'neutro'):
+    """
+    Carga los vectores de un tipo específico (por defecto 'neutro').
+    """
+    try:
+        conn = db.get_connection()
+        cur = conn.cursor()
+
+        query = """
+            SELECT id_empleado, vector_biometrico
+            FROM dato_biometrico_facial
+            WHERE tipo_vector = %s
+        """
+        cur.execute(query, (tipo,))
+        resultados = cur.fetchall()
+
+        vectores = {}
+        for id_empleado, vector_cifrado in resultados:
+            try:
+                vector_np = descifrar_vector(vector_cifrado)
+                vectores[id_empleado] = vector_np
+            except Exception as e:
+                print(f"⚠️ Error descifrando vector de {id_empleado}: {e}")
+                continue
+
+        return vectores
+
+    except Exception as e:
+        print(f"❌ Error al cargar vectores: {e}")
+        return {}
+
+    finally:
+        cur.close()
+        db.return_connection(conn)
+
 
 
