@@ -49,6 +49,7 @@ def buscar_mejor_match(vector_actual):
     """
     Compara el vector_actual contra todos los vectores 'neutro' guardados en la DB
     y devuelve (id_empleado, distancia) si encuentra un match dentro del umbral.
+    Si un vector es inválido, lo saltea sin cortar la ejecución.
     """
     try:
         conn = db.get_connection()
@@ -68,20 +69,24 @@ def buscar_mejor_match(vector_actual):
         for id_empleado, vector_cifrado in resultados:
             try:
                 vector_guardado = descifrar_vector(vector_cifrado)
+
+                if vector_guardado is None or not isinstance(vector_guardado, np.ndarray):
+                    print(f"⚠️ Vector inválido para {id_empleado}, salteando...")
+                    continue
+
                 distancia = np.linalg.norm(vector_actual - vector_guardado)
+
+                print(f"🧪 Comparando con {id_empleado}, distancia={distancia:.4f}")
 
                 if distancia < UMBRAL and distancia < menor_distancia:
                     mejor_match = id_empleado
                     menor_distancia = distancia
 
             except Exception as e:
-                print(f"⚠️ Error con vector de {id_empleado}: {e}")
+                print(f"⚠️ Error procesando vector de {id_empleado}, se omite: {e}")
                 continue
 
-        if mejor_match is not None:
-            return mejor_match, menor_distancia
-        else:
-            return None, None
+        return (mejor_match, menor_distancia) if mejor_match else (None, None)
 
     except Exception as e:
         print(f"❌ Error en la comparación de vectores: {e}")
