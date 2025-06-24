@@ -329,12 +329,25 @@ class RegistroHorario:
                 salida_dt = datetime.combine(fecha_actual, hora_fin)
                 actual_dt = fecha_hora.replace(second=0, microsecond=0)
 
-                # ⏱️ Rango y tolerancias
-                entrada_temprana = entrada_dt - timedelta(minutes=60)
-                tolerancia = timedelta(minutes=5)
-                retraso_min = timedelta(minutes=15)
-                salida_valida = timedelta(minutes=30)
-                salida_fuera = timedelta(hours=2)
+                #cargamos desde la db
+                cur.execute("""
+                    SELECT clave, valor
+                    FROM configuracion_asistencia
+                    WHERE clave IN ('entrada_temprana', 'tolerancia', 'retraso_min', 'salida_valida', 'salida_fuera')
+                """)
+                config_rows = cur.fetchall()
+                config = {clave: valor for clave, valor in config_rows}
+
+                #definimos desde las variables de la db
+                entrada_temprana_delta = config.get('entrada_temprana', timedelta(hours=1))
+                tolerancia = config.get('tolerancia', timedelta(minutes=5))
+                retraso_min = config.get('retraso_min', timedelta(minutes=15))
+                salida_valida = config.get('salida_valida', timedelta(minutes=30))
+                salida_fuera = config.get('salida_fuera', timedelta(hours=2))
+
+                entrada_temprana = entrada_dt - entrada_temprana_delta
+
+            #configuracion_asistencia
 
                 # 🧠 Lógica de tipo y estado
                 if actual_dt < entrada_temprana:
